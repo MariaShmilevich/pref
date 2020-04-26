@@ -12,6 +12,7 @@ import arcade
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "Preferance"
+CARD_SCALING_FACTOR = .1
 
 
 class MyGame(arcade.Window):
@@ -33,8 +34,11 @@ class MyGame(arcade.Window):
 
     def setup(self):
         # Create your sprites and sprite lists here
-        self.cards = arcade.SpriteList()
-        pass
+        self.card = arcade.Sprite(
+            "sprites/cards/2_of_clubs.png", CARD_SCALING_FACTOR)
+
+        self.card.center_x = 100
+        self.card.center_y = 200
 
     def on_draw(self):
         """
@@ -46,6 +50,7 @@ class MyGame(arcade.Window):
         arcade.start_render()
 
         # Call draw() on all your sprite lists below
+        self.card.draw()
 
     def on_update(self, delta_time):
         """
