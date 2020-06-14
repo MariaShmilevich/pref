@@ -62,7 +62,9 @@ class Card:
 
     def set_east_coord(self,order):
         #y=[535,535,445,445,355,355,265,265,175,175]
-        y=[525,525,435,435,345,345,255,255,165,165]
+        #y=[525,525,435,435,345,345,255,255,165,165]
+        #two last for prikup
+        y=[525,525,435,435,345,345,255,255,165,165,75,75]
         self.face.center_x = 700+60*(order%2)
         self.face.center_y = y[order]
         self.back.center_x = 700+60*(order%2)
@@ -85,6 +87,14 @@ class Card:
     def set_east_trick_coord(self):
         self.face.center_x = 380
         self.face.center_y = 300
+
+class DummyCard(Card):
+    def __init__(self):
+        self.num = 0
+        self.value = 0
+        self.suit = None
+        self.face = arcade.Sprite("sprites/cards/back_red.png",SF)
+        self.back = arcade.Sprite("sprites/cards/back_red.png",SF)
        
 def get_key(card):
     if (card.suit == "h"):
@@ -102,6 +112,13 @@ def deal(shuffled_deck, beg_index, end_index, hand):
     del hand[:]
     hand.extend(shuffled_deck[beg_index:end_index])
     hand.sort(reverse=True, key = get_key)
+
+def deal_open(hand, card_num_list, deck, sort = "sort"):
+    del hand[:]
+    for i in card_num_list:
+        hand.append(deck[i])
+    if sort == "sort":
+        hand.sort(reverse=True, key = get_key)
 
 def deal_all_hands(hands):
     shuffle(deck)
@@ -129,6 +146,20 @@ def has_suit(hand,suit):
             return(True)
     return(False)
 
+def find_winner(cards, trump, suit):
+    if has_suit(cards, trump):
+        win_suit = trump
+    else:
+        win_suit = suit
+    win_value = 6
+    for i in [0,1,2]:
+        if cards[i].suit != win_suit:
+            continue
+        if cards[i].value > win_value:
+            win_value = cards[i].value
+            winner = i
+    return(winner)
+
 class Trick:
     def __init__(self,suit,trump,cards):
         self.suit = suit
@@ -150,8 +181,11 @@ class Trick:
         return(winner)
 
     def set_coord(self,winner,num):
-        x=[450,510,570,630,450,510,570,630,390,390]
-        y=[350,350,350,350,250,250,250,250,350,250]
+        #x=[450,510,570,630,450,510,570,630,390,390]
+        #y=[350,350,350,350,250,250,250,250,350,250]
+
+        x=[630,630,570,570,510,510,450,450,390,390]
+        y=[350,250,350,250,350,250,350,250,350,250]
         k=[-1,1]
         if winner == 0: #south
             for i in [0,1,2]:
@@ -168,5 +202,6 @@ class Trick:
                 self.cards[i].back.center_x = x[num]+5*i
                 self.cards[i].back.center_y = y[num]
                 self.cards[i].back.angle = 30*k[num%2]
+
 
   
