@@ -844,7 +844,14 @@ class MyGame(arcade.Window):
         For a full list of keys, see:
         http://arcade.academy/arcade.key.html
         """
-        super().on_key_press(key, key_modifiers)
+        # We only want to register key presses of printable characters
+        # (ASCII 32-126 inclusive)
+        if key in range(32,127):
+            # if we pressed shift, uppercase the character
+            # if shift is pressed, the first bit of the modifiers is one
+            if 1 & key_modifiers == 1:
+                key = key - 32
+            super().on_key_press(key, key_modifiers)
 
     def on_key_release(self, key, key_modifiers):
         """
