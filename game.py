@@ -24,6 +24,9 @@ from datetime import datetime
 from random import seed
 from random import randint
 from random import shuffle
+
+import socket
+
 #seed(1)
 seed(datetime.now())
 
@@ -41,7 +44,10 @@ class MyGame(arcade.Window):
 
         self.theme = arcade.Theme()
 
-        self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        host = socket.gethostbyname("bilbo.varphi.com")
+
+        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        self.client = Client(host, 1234, 1234, 1235)
         self.players = ["Dummy", "Dummy", "Dummy"]
         """
         The first hand at the beginning will be the first 
@@ -53,17 +59,6 @@ class MyGame(arcade.Window):
         self.my_shift = 0 #used to to figure out drawing position
 
         self.score = Score(20)
-
-        """
-        #For pool writing:
-        # Пуля: Юг, Север, Восток
-        self.pool = [0,0,0]
-        # Гора: Юг, Север, Восток
-        self.hill = [20,20,20]
-        # Висты: юг на север и т.д.
-        #[[S/N,S/E],[N/S,N/E],[E/S,E/N]
-        self.vist_counts = [[0,0],[0,0],[0,0]]
-        """
 
         self.hand = []
         self.deck = []
@@ -87,6 +82,7 @@ class MyGame(arcade.Window):
         self.prikup_list = None
         self.current_trick_list = None
         self.collected_tricks_list = None
+        self.last_trick_list = None
 
         self.button_list = None
         self.shape_list = None
@@ -107,12 +103,13 @@ class MyGame(arcade.Window):
         self.current_round = {"trump":"n",
                               "value":0,
                               "type":"reg",#or "miser" or "raspas"
-                              "status":"open"} 
+                              "status":"closed"} 
         self.num_of_tricks = [0,0,0]
         self.current_offer = {"value":0,
                               "offering_hand":0,
                               "accepting_hand":0}
         self.offered_to_end_round = 0
+        self.show_last_trick = 0
 
         #stages
         self.waiting_stage = 0
@@ -152,6 +149,7 @@ class MyGame(arcade.Window):
         if "player_name" in message["message"].keys():
             i = int(message["message"]["player_number"])
             self.players[i] = message["message"]["player_name"]
+            self.score.names[i] = self.players[i][0]
             if self.client.identifier in message.keys():
                 self.my_num = i
                 self.set_shift()
@@ -209,7 +207,10 @@ class MyGame(arcade.Window):
             num = int(message["message"]["player_number"])
             order = message["message"]["playing"]
             index = int(message["message"]["index"])
-            self.move_to_vist_stage(order, index)
+            if order == -3:
+                self.set_without_three()
+            else:
+                self.move_to_vist_stage(order, index)
 
         #Player sent vist/pas
         if "vist" in message["message"].keys():
@@ -274,6 +275,7 @@ class MyGame(arcade.Window):
             self.disable_buttons([12,13])
             if answer == "yes":
                 self.new_round_stage = 1
+                self.setup_tricks_by_offer()
 
 
     def setup_open_hand(self, card_num_list, index):
@@ -435,6 +437,7 @@ class MyGame(arcade.Window):
         self.prikup_list = arcade.SpriteList()
         self.current_trick_list = arcade.SpriteList()
         self.collected_tricks_list = arcade.SpriteList()
+        self.last_trick_list = arcade.SpriteList()
 
 
     def create_button_list(self):
@@ -444,16 +447,19 @@ class MyGame(arcade.Window):
         reg_button = RegularButton(210, 150, self.bid_reg, "6 пик")
         pas_button = RegularButton(350, 150, self.bid_pas, "пас")
         order_button = RegularButton(250, 300, self.send_order, "заказ")
-        show_pool_button = ShowPoolButton(710, 12, self.show_pool, "Показать пулю")
+        #show_pool_button = ShowPoolButton(710, 12, self.show_pool, "Показать пулю")
+        show_pool_button = ShowPoolButton(660, 14, self.show_pool, "Показать\n пулю")
         connect_button = ConnectButton(500,400,self.send_name, "Играть")
         vist_button = RegularButton(70, 150, self.send_vist, "вист")
         pas_vist_button = RegularButton(210, 150, self.send_vist_pas, "пас")
         open_button = WideButton(70, 150, self.send_open, "в открытую")
         closed_button = WideButton(250, 150, self.send_closed, "взакрытую")
         continue_button = WideButton(200, 300, self.send_continue, "продолжить")
-        offer_button = WideButton(710, 97, self.send_offer, "согласен на")
+        offer_button = SmallButton(660, 56, self.send_offer, "согласен\n на")
         yes_button = RegularButton(200, 290, self.send_yes, "да")
         no_button = RegularButton(300, 290, self.send_no, "нет")
+        finalize_pool_button = SmallButton(750, 14, self.finalize_pool, "Расписать\n пулю")
+        last_trick_button = LastTrickButton(710, 97, self.show_trick, "Показать посл взятку")
         
             
         self.button_list.append(miser_button)      #0
@@ -470,6 +476,8 @@ class MyGame(arcade.Window):
         self.button_list.append(offer_button)      #11
         self.button_list.append(yes_button)        #12
         self.button_list.append(no_button)         #13
+        self.button_list.append(finalize_pool_button) #14
+        self.button_list.append(last_trick_button) #15
 
     def disable_buttons(self, list_to_disable):
         for i in list_to_disable:
@@ -504,7 +512,7 @@ class MyGame(arcade.Window):
             theme=arcade.Theme(),font_size=16))
         self.textbox_list.append(arcade.TextBox(200, 400, width=200,\
             theme=arcade.Theme(),font_size=16))
-        self.textbox_list.append(arcade.TextBox(680, 56, width=60,\
+        self.textbox_list.append(arcade.TextBox(750, 56, width=60,\
             theme=arcade.Theme(),font_size=12)) #MS!!! offer
           
         #for drawing the pool
@@ -527,6 +535,8 @@ class MyGame(arcade.Window):
             self.current_trick_list.pop()
         while len(self.collected_tricks_list) > 0:
             self.collected_tricks_list.pop()
+        while len(self.last_trick_list) > 0:
+            self.last_trick_list.pop()
 
     def deal_new_round(self):
         for i in range(10):
@@ -552,7 +562,7 @@ class MyGame(arcade.Window):
         self.bidding_stage = 1 
 
     def draw_connect(self):
-        temp = "Please type your name in latin alphabet lowercase"
+        temp = "Please type your name in latin alphabet"
         arcade.draw_text(temp, 200,300, arcade.color.BLACK,font_size=16)
         self.textbox_list[1].draw()
         self.button_list[5].draw()
@@ -576,6 +586,7 @@ class MyGame(arcade.Window):
 
         #Always show "Показать пулю" Button
         self.button_list[4].draw()
+        self.button_list[14].draw()
         
         self.north_list.draw()
         self.south_list.draw()
@@ -585,9 +596,11 @@ class MyGame(arcade.Window):
     def draw_offer(self):
         self.button_list[11].draw()
         self.textbox_list[2].draw()
+        """
         arcade.draw_text("взяток", 727, 48,
                          arcade.color.BLACK,
                          font_size=16)
+        """
 
     def draw_order(self, bids):
         #this shouldn't happen, but just to be safe
@@ -595,9 +608,9 @@ class MyGame(arcade.Window):
             return 
           
         temp = "заказать " + str(bids[self.curr_bid_winner]) +\
-                " или выше\ntype 6s for 6 пик, 7c for 7 треф,\n" +\
-                "8d for 8 бубей, 9h for 9 червей,\n" +\
-                "10n for 10 без козыря и т.д."
+                " или выше\ntype 6s для 6 пик, 7c for 7 треф,\n" +\
+                "8d для 8 бубей, 9h для 9 червей,\n" +\
+                "10n для 10 без козыря и т.д.; -3 для без трех"
         #Add -3 bez treh MS!!!
         arcade.draw_text(temp, 40,200, arcade.color.BLACK,font_size=16)
         self.textbox_list[0].draw()
@@ -663,6 +676,9 @@ class MyGame(arcade.Window):
     def draw_playing(self):
         self.current_trick_list.draw()
         self.collected_tricks_list.draw()
+        self.button_list[15].draw()
+        if self.show_last_trick:
+            self.last_trick_list.draw()
         draw_star_new(star_x_coord[(self.current_turn + self.my_shift)%3],
                       star_y_coord[(self.current_turn + self.my_shift)%3],
                       arcade.color.BARBIE_PINK,
@@ -794,7 +810,7 @@ class MyGame(arcade.Window):
 
         if self.show_stage:
             self.shape_list.draw()
-            self.score.write_pool(320,300,600,400,self.my_shift)
+            self.score.write_pool(320,300,600,400,self.my_num)
             """
             write_pool(320,300,600,400,
                        self.pool,self.hill,self.vist_counts)
@@ -845,8 +861,8 @@ class MyGame(arcade.Window):
         http://arcade.academy/arcade.key.html
         """
         # We only want to register key presses of printable characters
-        # (ASCII 32-126 inclusive)
-        if key in range(32,127):
+        # (ASCII 32-126 inclusive); BACKSPACE = 65288
+        if key in range(32,127) or key == 65288:
             # if we pressed shift, uppercase the character
             # if shift is pressed, the first bit of the modifiers is one
             if 1 & key_modifiers == 1:
@@ -972,32 +988,55 @@ class MyGame(arcade.Window):
             self.remove_trick(winner)
 
     def remove_trick(self, winner):
-        new_trick = Trick(self.current_trick[3],self.current_round["trump"],
+        new_trick = Trick(self.current_trick[3],
+                          self.current_round["trump"],
                           self.current_trick[0:3])
             
         new_trick.set_coord((winner + self.my_shift)%3,
                             self.num_of_tricks[winner])
+
+        card_list = self.current_trick[0:3]
         
         self.num_of_tricks[winner] += 1
+
+        while len(self.last_trick_list) > 0:
+            self.last_trick_list.pop()
+
         for i in [0,1,2]:
             self.collected_tricks_list.append(new_trick.cards[i].back)
             self.current_trick_list.pop()
             self.current_trick[i] = 0
+            
         if self.current_round["type"] == "raspas" and \
             self.times_prikup_opened == 1:
             self.prikup_list.pop(1)
             self.open_prikup(0)
             self.current_trick[3] = self.prikup[0].suit
             self.current_turn = self.turn
+            card_list.append(self.prikup[1])
+            param = "raspas"
+            my_range = 4
         elif self.current_round["type"] == "raspas" and \
             self.times_prikup_opened == 2:
             self.prikup_list.pop()
             self.times_prikup_opened = 0
             self.current_trick[3] = "n"
             self.current_turn = winner
+            card_list.append(self.prikup[0])
+            param = "raspas"
+            my_range = 4
         else:
             self.current_trick[3] = "n"
             self.current_turn = winner
+            param = "reg"
+            my_range = 3
+
+        last_trick = Trick(self.current_trick[3],
+                               self.current_round["trump"],
+                               card_list)
+        last_trick.set_last_coord(param)
+        for i in range(my_range):
+            self.last_trick_list.append(card_list[i].face)
 
         if self.round_finished():
             #self.playing_stage = 0 #MS!!!
@@ -1113,9 +1152,14 @@ class MyGame(arcade.Window):
 
     def send_continue(self):
         self.clear_sprite_lists()
-        self.new_round_stage = 0
+        self.new_round_stage = 0 
         self.playing_stage = 0
         self.waiting_stage = 1
+        self.score.calculate_pool(self.current_round_type, 
+                                  self.num_of_tricks,
+                                  self.vists)
+        print("pool ", self.score.pool)
+        print("hill ", self.score.hill)
         message = {"player_number":str(self.my_num),
                    "next":"next"}
         self.client.send(message, "server")
@@ -1140,11 +1184,23 @@ class MyGame(arcade.Window):
             if self.vists[i] != "пас" and i != num:
                 self.current_offer["accepting_hand"] = i
                 break
+
+    def setup_tricks_by_offer(self):
+        i = self.current_offer["offering_hand"]
+        j = self.current_offer["accepting_hand"]
+        if i == self.curr_bid_winner:
+            self.num_of_tricks[i] = self.current_offer["value"]
+            self.num_of_tricks[j] = 10 - self.current_offer["value"]
+        else:
+            self.num_of_tricks[j] = self.current_offer["value"]
+            self.num_of_tricks[i] = 10 - self.current_offer["value"]
+        self.num_of_tricks[3-i-j] = 0
         
     def send_yes(self):
         self.new_round_stage = 1
         self.offered_to_end_round = 0
         self.disable_buttons([12,13])
+        self.setup_tricks_by_offer()
         message = {"player_number":str(self.my_num),
                    "answer":"yes"}
         self.client.send(message) 
@@ -1181,23 +1237,40 @@ class MyGame(arcade.Window):
         self.vist_stage = 0
         self.vist_complete = 0
 
-        
+    def finalize_pool(self):
+        pass   
+
+    def show_trick(self):
+        self.show_last_trick = (self.show_last_trick +1)%2
 
     def show_pool(self):
         self.show_stage = (self.show_stage + 1)%2
 
     def send_order(self):
         order = self.textbox_list[0].text_storage.text
-        index = game_order_check(self.bids, order)
-
-        if index == -1:
-            self.order_stage = 1
+        index = -1
+        print("order ", order)
+        print("game ", self.bids[self.curr_bid_winner][0])
+        if order == "-3" and \
+            self.bids[self.curr_bid_winner][0] == 6:
+            self.set_without_three()
         else:
+            index = game_order_check(self.bids, order)
+            if index == -1:
+                self.order_stage = 1
+                return
             self.move_to_vist_stage(order, index)
-            message = {"player_number":str(self.my_num),
-                       "playing":str(order),
-                       "index":str(index)}
-            self.client.send(message)
+        message = {"player_number":str(self.my_num),
+                   "playing":str(order),
+                   "index":str(index)}
+        self.client.send(message)
+
+    def set_without_three(self):
+        print("I am here")
+        self.current_round_type = "bez_treh"
+        self.current_round["type"] = "bez_treh"
+        self.order_stage = 0
+        self.new_round_stage = 1
             
     def move_to_vist_stage(self, order, index):
         self.order_stage = 0
@@ -1236,7 +1309,7 @@ class MyGame(arcade.Window):
         if not self.new_round_stage:
             self.button_list[10].disable()
         if not self.playing_stage:
-            self.disable_buttons([11,12,13])
+            self.disable_buttons([11,12,13,15])
         if not self.offered_to_end_round:
             self.disable_buttons([12,13])
 

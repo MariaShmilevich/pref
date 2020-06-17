@@ -25,6 +25,7 @@ game_order = [\
 
 visting_order = ["пас","свой","вист","играет"] #MS!!!
 
+"""
 turn_msg_x_coord = [10,10,700]
 turn_msg_y_coord = [200,400,70]
 
@@ -33,6 +34,17 @@ bid_msg_y_coord = [200,400,50]
 
 star_x_coord = [turn_msg_x_coord[0]+5,
                 turn_msg_x_coord[1]+5, 665]
+star_y_coord = [turn_msg_y_coord[0]-20,
+                turn_msg_y_coord[1]+30, 345]
+"""
+turn_msg_x_coord = [10,10,600]
+turn_msg_y_coord = [200,400,305]
+
+bid_msg_x_coord = [70,70,600]
+bid_msg_y_coord = [200,400,305]
+
+star_x_coord = [turn_msg_x_coord[0]+5,
+                turn_msg_x_coord[1]+5, 640]
 star_y_coord = [turn_msg_y_coord[0]-20,
                 turn_msg_y_coord[1]+30, 345]
 
@@ -168,17 +180,47 @@ class WideButton(TextButton):
 
 class ShowPoolButton(TextButton):
     def __init__(self, center_x, center_y, action_function, text):
-        super().__init__(center_x, center_y, 142, 30, "Показать пулю", 18, "Arial")
+        super().__init__(center_x, center_y, 70, 30, "Показать\n пулю", 18, "Arial")
         self.action_function = action_function
         self.text = text
+        self.font_size = 12 #was 142, 30
 
     def on_release(self):
         super().on_release()
-        if self.text == "Показать пулю":
-            self.text = "Скрыть пулю"
+        if self.text == "Показать\n пулю":
+            self.text = "Скрыть\n пулю"
         else:
-            self.text = "Показать пулю"
-        self.action_function()   
+            self.text = "Показать\n пулю"
+        if self.enabled:
+            self.action_function()
+
+class LastTrickButton(TextButton):
+    def __init__(self, center_x, center_y, action_function, text):
+        super().__init__(center_x, center_y, 140, 30, "Показать посл взятку", 18, "Arial")
+        self.action_function = action_function
+        self.text = text
+        self.font_size = 12 #was 142, 30
+
+    def on_release(self):
+        super().on_release()
+        if self.text == "Показать посл взятку":
+            self.text = "Скрыть посл взятку"
+        else:
+            self.text = "Показать посл взятку"
+        if self.enabled:
+            self.action_function()
+
+class SmallButton(TextButton):
+    def __init__(self, center_x, center_y, action_function, text):
+        super().__init__(center_x, center_y, 70, 30, "Расписать\n пулю", 18, "Arial")
+        self.action_function = action_function
+        self.text = text
+        self.font_size = 12 
+
+    def on_release(self):
+        super().on_release() 
+        if self.enabled:
+            self.action_function()    
 
 class ConnectButton(TextButton):
     def __init__(self, center_x, center_y, action_function, text):
@@ -228,7 +270,6 @@ def game_order_check(bids,order):
         if bid != "пас":
             bid_index = bidding_order.index(bid)
             break
-    #print("bid_index=",bid_index," index=",index)
     if index < bid_index:
         return -1
     else:

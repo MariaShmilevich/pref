@@ -226,24 +226,68 @@ def who_played_round(who_is_who):
             and  who_is_who[i] != "свой":
             return i
 
+def who_visted(who_is_who):
+    #returns array
+    vist_array = []
+    for i in [0,1,2]:
+        if who_is_who[i] == "вист":
+            vist_array.append(i)
+    return vist_array
+
+def who_said_svoj(who_is_who):
+    for i in [0,1,2]:
+        if who_is_who[i] == "свой":
+            return i
+    return -1
+
 def what_game(who_is_who, i):
     if who_is_who[i][0] == 1:
         return 10
     else:
-        return who_is_who[i][0]         
+        return int(who_is_who[i][0]) 
+
+def get_vist_array_index(playing_ind, visting_ind):
+    if visting_ind == 0:
+        if playing_ind == 1:
+            return 0
+        else: #playing_ind == 2
+            return 1
+    elif visting_ind == 1: 
+        if playing_ind == 0:
+            return 0
+        else: #playing_ind == 2
+            return 1
+    else: #visting_ind == 2: 
+        return playing_ind
+
+def get_required_vist_num(game):
+    if game == 6:
+        return 4
+    elif game == 7:
+        return 2
+    elif game == 8:
+        return 1
+    elif game == 9:
+        return 1
+    else:
+        return 0
+            
                                
 class Score:
     def __init__(self, max_pool):
         self.max_pool = max_pool
-        self.otvet_vist = False
+        self.names = ["","",""]
+
+        #multiplier, becomes 2 when pool is completed
+        self.otv_vist_factor = 1 
         #For pool writing:
         # Пуля: Юг, Север, Восток
-        self.pool = [5,6,7]
+        self.pool = [0,0,0]
         # Гора: Юг, Север, Восток
         self.hill = [20,20,20]
         # Висты: юг на север и т.д.
         #[[S/N,S/E],[N/S,N/E],[E/S,E/N]
-        self.vists = [[10,20],[30,40],[50,60]]
+        self.vists = [[0,0],[0,0],[0,0]]
 
     def calculate_pool(self, round_type, num_of_tricks, who_is_who):
         if round_type == "raspas":
@@ -255,25 +299,243 @@ class Score:
         elif round_type == "miser":
             i = who_played_miser(who_is_who)
             if num_of_tricks[i] == 0:
-                if self.pool[i] < self.max_pool - 10:
-                    self.pool[i] += 10
+                if self.otv_vist_factor == 1:
+                    remainder = self.add_to_pool(i, 10, [])
+                    self.close_pool_if_necessary()
+                    self.subtract_from_hill(i, 10 + remainder, [])
+                    if self.time_to_finish_pool():
+                        self.finish_pool()
                 else:
-                    my_part = self.max_pool - self.pool[i]
-                    help_part = 10 - my_part
-                    self.pool[i] += my_part
-                    self.help_by_pool(help_part)
+                    self.subtract_from_hill(i, 20, [])
+                    if self.time_to_finish_pool():
+                        self.finish_pool()
             else:
                 self.hill[i] += num_of_tricks[i] * 10
+        elif round_type == "bez_treh":
+            i = who_played_round(who_is_who)
+            self.hill[i] += 12
         else: #reg
-            pass #for now
+            i = who_played_round(who_is_who)
+            game = what_game(who_is_who, i)
+            game_cost = (game-5)*2
+            if num_of_tricks[i] >= game:
+                penalty = 0
+            else:
+                penalty = game - num_of_tricks[i]
+            vist_penalty = self.calculate_vists(num_of_tricks, 
+                                  who_is_who, i, game, penalty)
+            if penalty > 0:
+                self.hill[i] += penalty * game_cost * 2
+            else:
+                if self.otv_vist_factor == 1:
+                    remainder = self.add_to_pool(i, game_cost,
+                                                 vist_penalty)
+                    self.close_pool_if_necessary()
+                    self.subtract_from_hill(i, game_cost + remainder,
+                                            vist_penalty)
+                    if self.time_to_finish_pool():
+                        self.finish_pool()
+                else:
+                    self.subtract_from_hill(i, game_cost*2,
+                                            vist_penalty)
+                    if self.time_to_finish_pool():
+                        self.finish_pool()
 
-    def help_by_pool(self, help_part):
-        pass
+    def close_pool_if_necessary(self):
+        #it is called only if self.otv_vist_factor is still 1
+        num_closed = 0
+        last_ind = -1
+        for i in [0,1,2]:
+            if self.pool[i] == self.max_pool:
+                num_closed += 1
+            else:
+                last_ind = i
+        if num_closed <= 1:
+            return
+        if num_closed == 2:
+            self.otv_vist_factor = 2
+            #raise the last one
+            if last_ind > -1:
+                diff = self.max_pool - self.pool[last_ind]
+                self.pool[last_ind] = self.max_pool
+                self.hill[last_ind] += diff
+        elif num_closed == 3:
+            self.otv_vist_factor = 2
 
-    def help_by_hill(self, help_part):
-        pass
+    def time_to_finish_pool(self):
+        num_zero = 0
+        for i in [0,1,2]:
+            if self.hill[i] == 0 and self.pool[i] == self.max_pool:
+                num_zero += 1
+        if num_zero > 1:
+            return True
+        return False
+
+    def add_to_pool(self, i, amount, vist_penalty):
+        remainder = 0
+        if self.pool[i] < self.max_pool - amount:
+            self.pool[i] += amount
+        else:
+            my_part = self.max_pool - self.pool[i]
+            help_part = amount - my_part
+            self.pool[i] += my_part
+            remainder = self.help_by_pool(i, help_part, vist_penalty)
+        return remainder
+
+    def subtract_from_hill(self, i, amount, vist_penalty):
+        if self.hill[i] > amount:
+            self.hill[i] -= amount
+        else:
+            help_part = amount - self.hill[i]
+            self.hill[i] = 0
+            self.help_by_hill(i, help_part, vist_penalty)
+
+    def help_by_pool(self, i, help_part, vist_penalty):
+        if len(vist_penalty) == 0 or len(vist_penalty) == 2:
+            ind = self.who_else_has_better_pool(i)
+            remainder = self.help_pool_iteration(i, ind, help_part)
+            if remainder > 0:
+                other_ind = 3 - (i + ind)
+                remainder = self.help_pool_iteration(i, other_ind, 
+                                                     remainder)
+        elif len(vist_penalty) == 1:
+            other_ind = 3 - (i + vist_penalty[0])
+            remainder = self.help_pool_iteration(i, other_ind, 
+                                                     help_part)
+            if remainder > 0:
+                remainder = self.help_pool_iteration(i, vist_penalty[0], 
+                                                     remainder)
+        return remainder
+
+    def help_pool_iteration(self, helper, recepient, amount):
+        remainder = 0
+        self.pool[recepient] += amount
+        if self.pool[recepient] > self.max_pool:
+            remainder = self.pool[recepient] - self.max_pool
+            self.pool[recepient] = self.max_pool
+        j = get_vist_array_index(recepient, helper)
+        self.vists[helper][j] += 10*(amount - remainder)
+        return remainder
+
+    def help_by_hill(self, i, help_part, vist_penalty):
+        if len(vist_penalty) == 0 or len(vist_penalty) == 2:
+            ind = self.who_else_has_better_hill(i)
+            remainder = self.help_hill_iteration(i, ind, help_part)
+            if remainder > 0:
+                other_ind = 3 - (i + ind)
+                remainder = self.help_hill_iteration(i, other_ind, 
+                                                     remainder)
+        elif len(vist_penalty) == 1:
+            other_ind = 3 - (i + vist_penalty[0])
+            remainder = self.help_hill_iteration(i, other_ind, 
+                                                     help_part)
+            if remainder > 0:
+                remainder = self.help_hill_iteration(i, vist_penalty[0], 
+                                                     remainder)
+        return remainder
+
+    def help_hill_iteration(self, helper, recepient, amount):
+        remainder = 0
+        self.hill[recepient] -= amount
+        if self.hill[recepient] < 0:
+            remainder = 0 - self.hill[recepient]
+            self.hill[recepient] = 0
+        j = get_vist_array_index(recepient, helper)
+        self.vists[helper][j] += 10*(amount - remainder)
+        return remainder
+
+    def who_else_has_better_pool(self, helper_ind):
+        pool = 0
+        index = -1
+        #this assures clockwise assignment in case of equal pools
+        for i in [(helper_ind+1)%3, (helper_ind+2)%3]:
+            if self.pool[i] != self.max_pool and \
+                self.pool[i] > pool:
+                pool = self.pool[i]
+                index = i
+        return index
+
+    def who_else_has_better_hill(self, helper_ind):
+        hill = 65000
+        index = -1
+        #this assures clockwise assignment in case of equal hills
+        for i in [(helper_ind+1)%3, (helper_ind+2)%3]:
+            if self.hill[i] != 0 and \
+                self.hill[i] < hill:
+                hill = self.hill[i]
+                index = i
+        return index
+        
+        
+    #returns array of players who have penalty on vists
+    #returns empty array if there's no vist penalty
+    def calculate_vists(self, num_of_tricks, who_is_who,
+                        playing_ind, game, penalty):
+        vist_array = who_visted(who_is_who)
+        required_vist_num = get_required_vist_num(game)
+        vist_penalty_array = []
+        if len(vist_array) == 0:
+            visting_ind = who_said_svoj(who_is_who)
+            if visting_ind > -1:
+                i = get_vist_array_index(playing_ind, visting_ind)
+                #за 6-ную 2 взятки (8), за 7-ную 1 взятка - тоже 8
+                self.vists[visting_ind][i] += 8
+            return vist_penalty_array
+        elif len(vist_array) == 1: #один вистовал
+            pasing_ind = 3 - (playing_ind + vist_array[0])
+            i = get_vist_array_index(playing_ind, vist_array[0])
+            total_vists = num_of_tricks[vist_array[0]] + \
+                num_of_tricks[pasing_ind]
+            self.vists[vist_array[0]][i] += (game-5)*4* \
+                (total_vists + penalty)
+            if total_vists < required_vist_num:
+                self.hill[vist_array[0]] += \
+                    (required_vist_num - total_vists)* \
+                        (game-5)*2*self.otv_vist_factor
+                vist_penalty_array.append(vist_array[0])
+            if penalty > 0:
+                i = get_vist_array_index(playing_ind, pasing_ind)
+                self.vists[pasing_ind][i] += (game-5)*4*penalty
+            return (vist_penalty_array)
+        else: #оба вистовали
+            punish_vist = False
+            total_vists = num_of_tricks[vist_array[0]] + \
+                num_of_tricks[vist_array[1]]
+            if total_vists < required_vist_num:
+                punish_vist = True
+                req_half_vist = round(required_vist_num/2+0.1)
+            i = get_vist_array_index(playing_ind, vist_array[0])
+            self.vists[vist_array[0]][i] += \
+                (num_of_tricks[vist_array[0]] + penalty)*(game-5)*4
+            if punish_vist and \
+                num_of_tricks[vist_array[0]] < req_half_vist:
+                self.hill[vist_array[0]] += \
+                    (req_half_vist - num_of_tricks[vist_array[0]])* \
+                        (game-5)*2*self.otv_vist_factor
+                vist_penalty_array.append(vist_array[0])
+            i = get_vist_array_index(playing_ind, vist_array[1])
+            self.vists[vist_array[1]][i] += \
+                (num_of_tricks[vist_array[1]] + penalty)*(game-5)*4
+            if punish_vist and \
+                num_of_tricks[vist_array[1]] < req_half_vist:
+                self.hill[vist_array[1]] += \
+                    (req_half_vist - num_of_tricks[vist_array[1]])* \
+                        (game-5)*2*self.otv_vist_factor
+                vist_penalty_array.append(vist_array[1])
+            return vist_penalty_array
+
+    def finish_pool(self):
+        for i in [0,1,2]:
+            if self.pool[i] < self.max_pool:
+                balance = self.max_pool - self.pool[i]
+                self.pool[i] = self.max_pool
+                self.hill[i] += balance
+        amnesty = min(self.hill)
+        for i in [0,1,2]:
+            self.hill[i] -= amnesty
 
     def write_pool(self, center_x, center_y, width, height, shift):
+        #shift is actually player's number
         offset_x = center_x - width/2
         offset_y = center_y - height/2
         a = height * (1/5)
@@ -282,15 +544,15 @@ class Score:
         g_width = width*(1-b/height)
 
         #Names
-        arcade.draw_text("S", center_x - 10,
+        arcade.draw_text(self.names[shift], center_x - 10,
                      center_y - 40,
                      arcade.color.BLACK,
                      font_size=24)
-        arcade.draw_text("N", center_x - 10,
+        arcade.draw_text(self.names[(shift+1)%3], center_x - 10,
                      center_y + 15,
                      arcade.color.BLACK,
                      font_size=24)
-        arcade.draw_text("E", center_x + 25,
+        arcade.draw_text(self.names[(shift+2)%3], center_x + 25,
                      center_y - 5,
                      arcade.color.BLACK,
                      font_size=24,
@@ -329,34 +591,38 @@ class Score:
 
         #Vists
         #S/N, S/E
-        arcade.draw_text(str(self.vists[shift][0]),
+        #depending on player num, vists' order flips on display
+        flip = [[0,0,0],[1,1,0],[0,1,1]]
+        f = flip[shift]
+        arcade.draw_text(str(self.vists[shift][f[0]]),
                              offset_x + 5,
                              offset_y + 5,
                              arcade.color.BLACK)
-        arcade.draw_text(str(self.vists[shift][1]),
+        arcade.draw_text(str(self.vists[shift][(f[0]+1)%2]),
                              offset_x + p_width/2 + 5,
                              offset_y + 5,
                              arcade.color.BLACK)
 
         #N/S, N/E
-        arcade.draw_text(str(self.vists[(shift+1)%3][0]),
+        arcade.draw_text(str(self.vists[(shift+1)%3][f[1]]),
                              offset_x + 5,
                              offset_y + height - a + 5,
                              arcade.color.BLACK)
-        arcade.draw_text(str(self.vists[(shift+1)%3][1]),
+        arcade.draw_text(str(self.vists[(shift+1)%3][(f[1]+1)%2]),
                              offset_x + p_width/2 + 5,
                              offset_y + height - a + 5,
                              arcade.color.BLACK)
 
         #E/S, E/N
-        arcade.draw_text(str(self.vists[(shift+2)%3][0]),
+        arcade.draw_text(str(self.vists[(shift+2)%3][f[2]]),
                              offset_x + width - 15,
                              offset_y + 15,
                              arcade.color.BLACK,
                              rotation=90)
-        arcade.draw_text(str(self.vists[(shift+2)%3][1]),
+        arcade.draw_text(str(self.vists[(shift+2)%3][(f[2]+1)%2]),
                              offset_x + width - 15,
                              offset_y + height/2 + 15,
                              arcade.color.BLACK,
                              rotation=90)
+
                     

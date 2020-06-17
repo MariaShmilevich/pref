@@ -53,12 +53,15 @@ class Card:
     def set_south_coord(self,order):
         self.face.center_x = 35+60*order
         self.face.center_y = 60
+        self.face.angle = 0
 
     def set_north_coord(self,order):
         self.face.center_x = 35+60*order
         self.face.center_y = 535
         self.back.center_x = 35+60*order
         self.back.center_y = 535
+        self.face.angle = 0
+        self.back.angle = 0
 
     def set_east_coord(self,order):
         #y=[535,535,445,445,355,355,265,265,175,175]
@@ -69,24 +72,31 @@ class Card:
         self.face.center_y = y[order]
         self.back.center_x = 700+60*(order%2)
         self.back.center_y = y[order]
+        self.face.angle = 0
+        self.back.angle = 0
 
     def set_prikup_coord(self,order):
         self.face.center_x = 450+60*order
         self.face.center_y = 300
         self.back.center_x = 450+60*order
         self.back.center_y = 300
+        self.face.angle = 0
+        self.back.angle = 0
 
     def set_south_trick_coord(self):
         self.face.center_x = 320
         self.face.center_y = 240
+        self.face.angle = 0
 
     def set_north_trick_coord(self): 
         self.face.center_x = 320
         self.face.center_y = 360
+        self.face.angle = 0
 
     def set_east_trick_coord(self):
         self.face.center_x = 380
         self.face.center_y = 300
+        self.face.angle = 0
 
 class DummyCard(Card):
     def __init__(self):
@@ -202,6 +212,16 @@ class Trick:
                 self.cards[i].back.center_x = x[num]+5*i
                 self.cards[i].back.center_y = y[num]
                 self.cards[i].back.angle = 30*k[num%2]
+
+    def set_last_coord(self,raspas):
+        for i in [0,1,2]:
+            self.cards[i].face.center_x = 50+30*i
+            self.cards[i].face.center_y = 300
+            self.cards[i].face.angle = -15
+        if raspas == "raspas":
+            self.cards[3].face.center_x = 50+30*3
+            self.cards[3].face.center_y = 300
+            self.cards[3].face.angle = -15
 
 
   
