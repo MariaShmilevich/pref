@@ -112,97 +112,7 @@ def make_pool(center_x, center_y, width, height):
 
     return shape_list
 
-def write_pool(center_x, center_y, width, height,
-               pool, hill, vists):
-    offset_x = center_x - width/2
-    offset_y = center_y - height/2
-    a = height * (1/5)
-    b = height/3
-    p_width = width*(1-a/height)
-    g_width = width*(1-b/height)
-
-    #Names
-    arcade.draw_text("S", center_x - 10,
-                     center_y - 40,
-                     arcade.color.BLACK,
-                     font_size=24)
-    arcade.draw_text("N", center_x - 10,
-                     center_y + 15,
-                     arcade.color.BLACK,
-                     font_size=24)
-    arcade.draw_text("E", center_x + 25,
-                     center_y - 5,
-                     arcade.color.BLACK,
-                     font_size=24,
-                     rotation=90)
-    #Pool
-    arcade.draw_text(str(pool[0]),offset_x + 5,
-                             offset_y + a + 5,
-                             arcade.color.BLACK)
-    arcade.draw_text(str(pool[1]),offset_x + 5,
-                             offset_y + height - b + 5,
-                             arcade.color.BLACK)
-        
-    arcade.draw_text(str(pool[2]),offset_x + p_width - 15,
-                             offset_y + a + 15,
-                             arcade.color.BLACK,
-                             rotation = 90)
-
-    #Hill
-    arcade.draw_text(str(hill[0]),offset_x + p_width/2 - 20,
-                             offset_y + b + 5,
-                             arcade.color.BLACK)
-    arcade.draw_text(str(hill[1]),offset_x + p_width/2 - 20,
-                             offset_y + height/2 + 5,
-                             arcade.color.BLACK)
-        
-    arcade.draw_text(str(hill[2]),offset_x + g_width - 15,
-                             offset_y + b + 15,
-                             arcade.color.BLACK,
-                             rotation = 90)
-
-    #Vists
-    #S/N, S/E
-    arcade.draw_text(str(vists[0][0]),offset_x + 5,
-                             offset_y + 5,
-                             arcade.color.BLACK)
-    arcade.draw_text(str(vists[0][1]),offset_x + p_width/2 + 5,
-                             offset_y + 5,
-                             arcade.color.BLACK)
-
-    #N/S, N/E
-    arcade.draw_text(str(vists[1][0]),offset_x + 5,
-                             offset_y + height - a + 5,
-                             arcade.color.BLACK)
-    arcade.draw_text(str(vists[1][1]),offset_x + p_width/2 + 5,
-                             offset_y + height - a + 5,
-                             arcade.color.BLACK)
-
-    #E/S, E/N
-    arcade.draw_text(str(vists[2][0]),offset_x + width - 15,
-                             offset_y + 15,
-                             arcade.color.BLACK,
-                             rotation=90)
-    arcade.draw_text(str(vists[2][1]),offset_x + width - 15,
-                             offset_y + height/2 + 15,
-                             arcade.color.BLACK,
-                             rotation=90)
-
-def draw_star(x, y):
-    point_list1 =((x-5,y),
-                  (x,y+10),
-                  (x+5,y),
-                  (x,y-10))
-    arcade.draw_polygon_filled(point_list1, 
-                               arcade.color.YELLOW_ORANGE)
-    point_list2 =((x-10,y),
-                  (x,y+5),
-                  (x+10,y),
-                  (x,y-5))
-    arcade.draw_polygon_filled(point_list2, 
-                               arcade.color.YELLOW_ROSE)
-
-def draw_star_new(x, y, color1, color2):
+def draw_star(x, y, color1, color2):
     point_list1 =((x-5,y),
                   (x,y+10),
                   (x+5,y),
@@ -282,12 +192,16 @@ class Score:
         self.otv_vist_factor = 1 
         #For pool writing:
         # Пуля: Юг, Север, Восток
-        self.pool = [0,0,0]
+        self.pool = [20,10,0]
         # Гора: Юг, Север, Восток
-        self.hill = [20,20,20]
+        self.hill = [20,20,40]
         # Висты: юг на север и т.д.
         #[[S/N,S/E],[N/S,N/E],[E/S,E/N]
         self.vists = [[0,0],[0,0],[0,0]]
+        self.final = [0,0,0]
+        self.finished = 0
+        #self.close_sign = ["","",""]
+        self.close_sign = [">>",">>",">>"]
 
     def calculate_pool(self, round_type, num_of_tricks, who_is_who):
         if round_type == "raspas":
@@ -303,12 +217,8 @@ class Score:
                     remainder = self.add_to_pool(i, 10, [])
                     self.close_pool_if_necessary()
                     self.subtract_from_hill(i, 10 + remainder, [])
-                    if self.time_to_finish_pool():
-                        self.finish_pool()
                 else:
                     self.subtract_from_hill(i, 20, [])
-                    if self.time_to_finish_pool():
-                        self.finish_pool()
             else:
                 self.hill[i] += num_of_tricks[i] * 10
         elif round_type == "bez_treh":
@@ -333,13 +243,14 @@ class Score:
                     self.close_pool_if_necessary()
                     self.subtract_from_hill(i, game_cost + remainder,
                                             vist_penalty)
-                    if self.time_to_finish_pool():
-                        self.finish_pool()
                 else:
                     self.subtract_from_hill(i, game_cost*2,
                                             vist_penalty)
-                    if self.time_to_finish_pool():
-                        self.finish_pool()
+        for i in [0,1,2]:
+            if self.pool[i] == self.max_pool:
+                self.close_sign[i] =">>"
+        if self.time_to_finish_pool():
+            self.finish_pool()
 
     def close_pool_if_necessary(self):
         #it is called only if self.otv_vist_factor is still 1
@@ -525,6 +436,7 @@ class Score:
             return vist_penalty_array
 
     def finish_pool(self):
+        bal_vists = [0,0,0]
         for i in [0,1,2]:
             if self.pool[i] < self.max_pool:
                 balance = self.max_pool - self.pool[i]
@@ -533,6 +445,31 @@ class Score:
         amnesty = min(self.hill)
         for i in [0,1,2]:
             self.hill[i] -= amnesty
+            bal_vists[i] = round(self.hill[i]*10/3)
+        
+        #[[0/1,0/2],[1/0,1/2],[2/0,2/1]]
+        self.vists[1][0] += bal_vists[0]
+        self.vists[2][0] += bal_vists[0]
+
+        self.vists[0][0] += bal_vists[1]
+        self.vists[2][1] += bal_vists[1]
+
+        self.vists[0][1] += bal_vists[2]
+        self.vists[1][1] += bal_vists[2]
+
+        self.vists[0][0] -= self.vists[1][0]     #0/1 and 1/0
+        self.vists[1][0] = (-1)*self.vists[0][0]
+
+        self.vists[0][1] -= self.vists[2][0]     #0/2 and 2/0
+        self.vists[2][0] = (-1)*self.vists[0][1]
+
+        self.vists[1][1] -= self.vists[2][1]     #1/2 and 2/1
+        self.vists[2][1] = (-1)*self.vists[1][1]
+
+        for i in [0,1,2]:
+            self.final[i] = self.vists[i][0] + self.vists[i][1]
+
+        self.finished = 1
 
     def write_pool(self, center_x, center_y, width, height, shift):
         #shift is actually player's number
@@ -558,18 +495,19 @@ class Score:
                      font_size=24,
                      rotation=90)
         #Pool
-        arcade.draw_text(str(self.pool[shift]),
+        arcade.draw_text(str(self.pool[shift])+self.close_sign[shift],
                              offset_x + 5,
                              offset_y + a + 5,
                              arcade.color.BLACK)
-        arcade.draw_text(str(self.pool[(shift+1)%3]),
+        arcade.draw_text(str(self.pool[(shift+1)%3])+self.close_sign[(shift+1)%3],
                              offset_x + 5,
                              offset_y + height - b + 5,
                              arcade.color.BLACK)
-        
-        arcade.draw_text(str(self.pool[(shift+2)%3]),
-                             offset_x + p_width - 15,
-                             offset_y + a + 15,
+        temp = self.close_sign[(shift+2)%3]
+        temp_offset = len(temp)*5
+        arcade.draw_text(str(self.pool[(shift+2)%3])+temp,
+                             offset_x + p_width - 15 - temp_offset,
+                             offset_y + a + 20, #15,
                              arcade.color.BLACK,
                              rotation = 90)
 
@@ -582,9 +520,10 @@ class Score:
                              offset_x + p_width/2 - 20,
                              offset_y + height/2 + 5,
                              arcade.color.BLACK)
-        
-        arcade.draw_text(str(self.hill[(shift+2)%3]),
-                             offset_x + g_width - 15,
+        temp = str(self.hill[(shift+2)%3])
+        temp_offset = 10 + len(temp)*5
+        arcade.draw_text(temp,
+                             offset_x + g_width - temp_offset,
                              offset_y + b + 15,
                              arcade.color.BLACK,
                              rotation = 90)
@@ -614,15 +553,38 @@ class Score:
                              arcade.color.BLACK)
 
         #E/S, E/N
-        arcade.draw_text(str(self.vists[(shift+2)%3][f[2]]),
-                             offset_x + width - 15,
+        temp = str(self.vists[(shift+2)%3][f[2]])
+        temp_offset = 10 + len(temp)*5
+        arcade.draw_text(temp,
+                             offset_x + width - temp_offset,
                              offset_y + 15,
                              arcade.color.BLACK,
                              rotation=90)
-        arcade.draw_text(str(self.vists[(shift+2)%3][(f[2]+1)%2]),
-                             offset_x + width - 15,
+        temp = str(self.vists[(shift+2)%3][(f[2]+1)%2])
+        temp_offset = 10 + len(temp)*5
+        arcade.draw_text(temp,
+                             offset_x + width - temp_offset,
                              offset_y + height/2 + 15,
                              arcade.color.BLACK,
                              rotation=90)
+
+        #finish
+        if self.finished:
+            arcade.draw_text(str(self.final[shift]),
+                             offset_x + p_width/2 - 100,
+                             offset_y + b + 5,
+                             arcade.color.RED)
+            arcade.draw_text(str(self.final[(shift+1)%3]),
+                             offset_x + p_width/2 - 100,
+                             offset_y + height/2 + 5,
+                             arcade.color.RED)
+            temp = str(self.final[(shift+2)%3])
+            temp_offset = 10 + len(temp)*5
+            arcade.draw_text(temp,
+                             offset_x + g_width - temp_offset,
+                             offset_y + b + 75,
+                             arcade.color.RED,
+                             rotation = 90)
+
 
                     

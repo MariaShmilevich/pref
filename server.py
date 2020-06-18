@@ -79,7 +79,7 @@ class UdpServer(Thread):
         self.is_listening = True
         self.udp_port = int(udp_port)
         self.msg = '{"success": %(success)s, "message":"%(message)s"}'
-        self.times_got_continue = 0
+        self.times_got_continue = 0 #Has to belong to room
 
     def deal(self):
         for room_id, room in rooms.rooms.items():
@@ -185,6 +185,13 @@ class UdpServer(Thread):
                                     if self.times_got_continue == 3:
                                         self.rooms.rooms[room_id].time_to_deal = 1
                                         self.times_got_continue = 0
+
+                                if "finalize" in payload["message"].keys():
+                                    player_num = int(payload["message"]["player_number"])
+                                    self.send_finalize(room_id, identifier, player_num, "request")
+                                    self.rooms.rooms[room_id].request_to_finish[player_num] = 1
+                                    if sum(self.rooms.rooms[room_id].request_to_finish) == 3:
+                                        self.send_finalize(room_id, identifier, player_num, "all")
                             except:
                                 pass
                     finally:
@@ -200,9 +207,16 @@ class UdpServer(Thread):
         self.stop()
 
     def send_prikup(self, i, game_type, room_id, identifier):
-        #fix for raspas MS!!!
         message = {"prikup":str(self.rooms.rooms[room_id].prikup).strip('[]'),
                    "type":str(game_type)}
+        self.rooms.send2all(identifier,
+                            room_id,
+                            message,
+                            self.sock)
+
+    def send_finalize(self, room_id, identifier, player_num, request):
+        message = {"finalize":str(request),
+                   "player_number":str(player_num)}
         self.rooms.send2all(identifier,
                             room_id,
                             message,

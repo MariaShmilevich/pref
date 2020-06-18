@@ -44,10 +44,10 @@ class MyGame(arcade.Window):
 
         self.theme = arcade.Theme()
 
-        host = socket.gethostbyname("bilbo.varphi.com")
+        #host = socket.gethostbyname("bilbo.varphi.com")
+        #self.client = Client(host, 1234, 1234, 1235)
+        self.client = Client("127.0.0.1", 1234, 1234, 1235)
 
-        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
-        self.client = Client(host, 1234, 1234, 1235)
         self.players = ["Dummy", "Dummy", "Dummy"]
         """
         The first hand at the beginning will be the first 
@@ -110,6 +110,7 @@ class MyGame(arcade.Window):
                               "accepting_hand":0}
         self.offered_to_end_round = 0
         self.show_last_trick = 0
+        self.finalize_request = 0
 
         #stages
         self.waiting_stage = 0
@@ -276,6 +277,14 @@ class MyGame(arcade.Window):
             if answer == "yes":
                 self.new_round_stage = 1
                 self.setup_tricks_by_offer()
+
+        #Server sent finalize request 
+        if "finalize" in message["message"].keys():
+            num = int(message["message"]["player_number"])
+            if message["message"]["finalize"] == "request":
+                self.finalize_request = 1
+            elif message["message"]["finalize"] == "all":
+                self.score.finish_pool()
 
 
     def setup_open_hand(self, card_num_list, index):
@@ -593,6 +602,13 @@ class MyGame(arcade.Window):
         self.east_list.draw()
         self.prikup_list.draw()
 
+        if self.finalize_request == 1:
+            arcade.draw_text("Поступило предложение расписать. \nНажмите кнопку Расписать",
+                              40,300,
+                              arcade.color.BLACK,
+                              font_size=16)
+                              
+
     def draw_offer(self):
         self.button_list[11].draw()
         self.textbox_list[2].draw()
@@ -679,7 +695,7 @@ class MyGame(arcade.Window):
         self.button_list[15].draw()
         if self.show_last_trick:
             self.last_trick_list.draw()
-        draw_star_new(star_x_coord[(self.current_turn + self.my_shift)%3],
+        draw_star(star_x_coord[(self.current_turn + self.my_shift)%3],
                       star_y_coord[(self.current_turn + self.my_shift)%3],
                       arcade.color.BARBIE_PINK,
                       arcade.color.BARBIE_PINK)
@@ -757,7 +773,9 @@ class MyGame(arcade.Window):
             self.order_stage or self.vist_stage or \
             self.choosing_stage:
             draw_star(star_x_coord[(self.turn + self.my_shift)%3],
-                      star_y_coord[(self.turn + self.my_shift)%3])
+                      star_y_coord[(self.turn + self.my_shift)%3],
+                      arcade.color.YELLOW_ORANGE,
+                      arcade.color.YELLOW_ROSE)
 
         if self.bidding_stage and not bidding_complete(self.bids):
             self.draw_slovo()
@@ -811,10 +829,21 @@ class MyGame(arcade.Window):
         if self.show_stage:
             self.shape_list.draw()
             self.score.write_pool(320,300,600,400,self.my_num)
-            """
-            write_pool(320,300,600,400,
-                       self.pool,self.hill,self.vist_counts)
-            """
+            
+        if self.score.finished:
+            self.finalize_request = 0
+            self.bidding_stage = 0
+            self.prikup_stage = 0
+            self.order_stage = 0
+            self.vist_stage = 0
+            self.choosing_stage = 0 
+            self.new_round_stage = 0
+            self.playing_stage = 0
+            self.clear_sprite_lists()
+            arcade.draw_text("Пуля закрыта",
+                              40,300,
+                              arcade.color.BLACK,
+                              font_size=16)
 
     def on_update(self, delta_time):
         """
@@ -826,7 +855,7 @@ class MyGame(arcade.Window):
         
         if self.client.got_udp_msg:
             self.parse_server_msg()
-        #добавить распас и т.д.
+        
         if bidding_complete(self.bids) and self.bidding_stage:
             self.bidding_stage = 0 
             self.curr_bid_winner = who_won_bidding(self.bids)
@@ -850,6 +879,9 @@ class MyGame(arcade.Window):
 
         if self.vist_complete:
             self.finalize_vists()
+
+        if self.score.finished:
+            pass #say something MS!!!
 
         self.disable_unnecessary_buttons() #MS!!!
 
@@ -1238,7 +1270,11 @@ class MyGame(arcade.Window):
         self.vist_complete = 0
 
     def finalize_pool(self):
-        pass   
+        if not self.score.finished:
+            message = {"player_number":str(self.my_num),
+                       "finalize":"1"}
+            self.client.send(message, "server") 
+            self.finalize_request = 1 
 
     def show_trick(self):
         self.show_last_trick = (self.show_last_trick +1)%2
@@ -1289,8 +1325,8 @@ class MyGame(arcade.Window):
 
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
+        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
         self.client.name = name
-        print(name)
         self.connect_to_server()
         self.connecting_stage = 0
         self.waiting_stage = 1

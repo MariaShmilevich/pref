@@ -162,6 +162,8 @@ class Room:
         self.hands = [[],[],[],[]] #MS!!!
         self.prikup = []
         self.time_to_deal = 0
+        self.times_got_continue = 0
+        self.request_to_finish = [0,0,0]
 
     def join(self, player):
         """
