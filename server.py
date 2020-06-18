@@ -174,8 +174,7 @@ class UdpServer(Thread):
                                 if "how" in payload["message"].keys():
                                     pasing_num = int(payload["message"]["pasing_num"])
                                     playing_num = int(payload["message"]["playing_num"])
-                                    visting_num = int(payload["message"]["player_number"])
-                                    print("pn=",pasing_num," pln=",playing_num, " vn=",visting_num)
+                                    visting_num = int(payload["message"]["visting_num"])
                                     self.send_play_open(room_id, identifier,
                                                         visting_num, pasing_num, 
                                                         playing_num)

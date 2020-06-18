@@ -132,8 +132,9 @@ def who_played_miser(who_is_who):
 
 def who_played_round(who_is_who):
     for i in [0,1,2]:
-        if who_is_who[i] != "пас" and  who_is_who[i] != "вист" \
-            and  who_is_who[i] != "свой":
+        if who_is_who[i] != "пас" and  \
+            who_is_who[i] != "вист" and \
+            who_is_who[i] != "свой":
             return i
 
 def who_visted(who_is_who):
@@ -151,7 +152,7 @@ def who_said_svoj(who_is_who):
     return -1
 
 def what_game(who_is_who, i):
-    if who_is_who[i][0] == 1:
+    if int(who_is_who[i][0]) == 1:
         return 10
     else:
         return int(who_is_who[i][0]) 
@@ -192,16 +193,16 @@ class Score:
         self.otv_vist_factor = 1 
         #For pool writing:
         # Пуля: Юг, Север, Восток
-        self.pool = [20,10,0]
+        self.pool = [0,0,0]
         # Гора: Юг, Север, Восток
-        self.hill = [20,20,40]
+        self.hill = [20,20,20]
         # Висты: юг на север и т.д.
         #[[S/N,S/E],[N/S,N/E],[E/S,E/N]
         self.vists = [[0,0],[0,0],[0,0]]
         self.final = [0,0,0]
         self.finished = 0
-        #self.close_sign = ["","",""]
-        self.close_sign = [">>",">>",">>"]
+        self.close_sign = ["","",""]
+        #self.close_sign = [">>",">>",">>"]
 
     def calculate_pool(self, round_type, num_of_tricks, who_is_who):
         if round_type == "raspas":
@@ -228,7 +229,8 @@ class Score:
             i = who_played_round(who_is_who)
             game = what_game(who_is_who, i)
             game_cost = (game-5)*2
-            if num_of_tricks[i] >= game:
+            if num_of_tricks[i] >= game or \
+                len(who_visted(who_is_who)) == 0: #pas or svoj
                 penalty = 0
             else:
                 penalty = game - num_of_tricks[i]
@@ -331,6 +333,9 @@ class Score:
     def help_by_hill(self, i, help_part, vist_penalty):
         if len(vist_penalty) == 0 or len(vist_penalty) == 2:
             ind = self.who_else_has_better_hill(i)
+            if ind == -1:
+                #both have 0 MS!!!
+                return
             remainder = self.help_hill_iteration(i, ind, help_part)
             if remainder > 0:
                 other_ind = 3 - (i + ind)
@@ -347,6 +352,7 @@ class Score:
 
     def help_hill_iteration(self, helper, recepient, amount):
         remainder = 0
+        print(recepient)
         self.hill[recepient] -= amount
         if self.hill[recepient] < 0:
             remainder = 0 - self.hill[recepient]
@@ -397,6 +403,8 @@ class Score:
             i = get_vist_array_index(playing_ind, vist_array[0])
             total_vists = num_of_tricks[vist_array[0]] + \
                 num_of_tricks[pasing_ind]
+            if game == 10:
+                total_vists = 0 #Десятерная не вистуется, только за помощь
             self.vists[vist_array[0]][i] += (game-5)*4* \
                 (total_vists + penalty)
             if total_vists < required_vist_num:

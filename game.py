@@ -97,7 +97,8 @@ class MyGame(arcade.Window):
         self.curr_bid_winner = -2
 
         self.bids=[0,0,0] #becomes for instance ["6s", "pas", "pas"]
-        self.vists=["","",""] 
+        self.vists = ["","",""] 
+        self.vists_for_display = ["","",""] 
         self.current_trick = [0,0,0,"n"] #last one is cur. trick's suit
         self.current_round_type = 0 #"reg","miser" or "raspas"
         self.current_round = {"trump":"n",
@@ -231,20 +232,30 @@ class MyGame(arcade.Window):
                 self.current_round["status"]="closed"
             else: #open
                 self.current_round["status"]="open"
+                index_v = self.vists.index("вист")
+                index_p = self.vists.index("пас")
                 if "visting_hand" in message["message"].keys():
                     vist_num_list = list(map(int, 
                         message["message"]["visting_hand"].split(',')))
-                    print("visting_hand: ", vist_num_list)
-                    index = self.vists.index("вист")
-                    print(vist_num_list)
-                    self.setup_open_hand(vist_num_list, index)
+                    self.setup_open_hand(vist_num_list, index_v)
                 if "pasing_hand" in message["message"].keys():
                     pas_num_list = list(map(int, 
                         message["message"]["pasing_hand"].split(',')))
-                    print("pasing_hand: ", pas_num_list)
-                    index = self.vists.index("пас")
-                    print(pas_num_list)
-                    self.setup_open_hand(pas_num_list, index)
+                    self.setup_open_hand(pas_num_list, index_p)
+                
+                #Add vists for display MS!!!
+                #remove artificial pas and vist
+                if self.vists[self.curr_bid_winner][0] == "м":
+                    self.vists_for_display[self.curr_bid_winner] = \
+                        self.vists[self.curr_bid_winner]
+                    self.vists_for_display[index_v] = "ловит"
+                    self.vists_for_display[index_p] = "ловит"
+                elif self.vists[self.curr_bid_winner][0] == "1":
+                    self.vists_for_display[self.curr_bid_winner] = \
+                        self.vists[self.curr_bid_winner]
+                    self.vists_for_display[index_v] = "проверяет"
+                    self.vists_for_display[index_p] = "проверяет"
+                
 
         #Player sent card put on table
         if "card_num" in message["message"].keys():
@@ -415,14 +426,13 @@ class MyGame(arcade.Window):
             self.playing_stage = 1
             self.current_round["status"]="open"
 
-            #setup artificial vist/pas to facilitate open cards
-            #need to fix this for display
+            #setup artificial, it will not be displayed
             i = self.curr_bid_winner
             self.vists[i] = "мизер"
             self.vists[(i+1)%3] = "вист"
             self.vists[(i+2)%3] = "пас"
             if self.my_num == (i+1)%3:
-                self.send_open() 
+                self.send_open_to_server((i+1)%3, (i+2)%3, i)
 
     def move_to_prikup_stage(self, game_type):    
         self.bidding_stage = 0
@@ -580,17 +590,17 @@ class MyGame(arcade.Window):
         #South, myself
         arcade.draw_text(self.players[self.my_num],200,1,
                          arcade.color.BLACK)
-        arcade.draw_text(self.vists[self.my_num],300,1,
+        arcade.draw_text(self.vists_for_display[self.my_num],300,1,
                          arcade.color.BLACK)
         #North
         arcade.draw_text(self.players[(self.my_num+1)%3],200,580,
                          arcade.color.BLACK)
-        arcade.draw_text(self.vists[(self.my_num+1)%3],300,580,
+        arcade.draw_text(self.vists_for_display[(self.my_num+1)%3],300,580,
                          arcade.color.BLACK)
         #East
         arcade.draw_text(self.players[(self.my_num+2)%3],670,570,
                          arcade.color.BLACK)
-        arcade.draw_text(self.vists[(self.my_num+2)%3],750,570,
+        arcade.draw_text(self.vists_for_display[(self.my_num+2)%3],750,570,
                          arcade.color.BLACK)
 
         #Always show "Показать пулю" Button
@@ -757,7 +767,7 @@ class MyGame(arcade.Window):
             self.button_list[5].disable()
         
         if self.waiting_stage:
-            arcade.draw_text("Waiting for other players",
+            arcade.draw_text("Ждем остальных игроков",
                          200, 
                          400,
                          arcade.color.BLACK, 
@@ -922,14 +932,13 @@ class MyGame(arcade.Window):
         if self.playing_stage:
             #self.check_trick(x,y)
             self.put_card(x,y)
-            if button == arcade.MOUSE_BUTTON_RIGHT:
+            if button == arcade.MOUSE_BUTTON_LEFT or \
+                button == arcade.MOUSE_BUTTON_RIGHT:
                 self.collect_trick(x,y)
 
         if self.prikup_stage:
-            if button == arcade.MOUSE_BUTTON_LEFT:
-                #MS!!! do I want left and right?
-                self.collect_prikup(x,y)
-            elif button == arcade.MOUSE_BUTTON_RIGHT:
+            if button == arcade.MOUSE_BUTTON_LEFT or \
+                button == arcade.MOUSE_BUTTON_RIGHT:
                 self.collect_prikup(x,y)
 
         self.discard_prikup(x,y)
@@ -1169,11 +1178,15 @@ class MyGame(arcade.Window):
         # I am visting, get pasing player number
         # it occurs only once in this case
         pasing_num = self.vists.index("пас")
-        print("pasing_num = ",pasing_num)
-        message = {"player_number":str(self.my_num),
+        playing_num = self.curr_bid_winner
+        self.send_open_to_server(self.my_num, 
+                                 pasing_num, playing_num)
+
+    def send_open_to_server(self, visting_num, pasing_num, playing_num):
+        message = {"visting_num":str(visting_num),
                    "how":"open",
                    "pasing_num":str(pasing_num),
-                   "playing_num":str(self.curr_bid_winner)}      
+                   "playing_num":str(playing_num)}      
         self.client.send(message, "server")
 
     def send_closed(self):
@@ -1207,6 +1220,8 @@ class MyGame(arcade.Window):
                    "offer":str(how_many)}
         self.client.send(message)
         self.setup_current_offer(self.my_num, how_many)
+
+        self.textbox_list[2].text_storage.text="" #MS!!!
 
     def setup_current_offer(self, num, offer):
         self.offered_to_end_round = 1
@@ -1270,6 +1285,9 @@ class MyGame(arcade.Window):
         self.vist_stage = 0
         self.vist_complete = 0
 
+        for j in [0,1,2]:
+            self.vists_for_display[j] = self.vists[j]
+
     def finalize_pool(self):
         if not self.score.finished:
             message = {"player_number":str(self.my_num),
@@ -1302,6 +1320,8 @@ class MyGame(arcade.Window):
                    "index":str(index)}
         self.client.send(message)
 
+        self.textbox_list[0].text_storage.text="" #MS!!!
+
     def set_without_three(self):
         print("I am here")
         self.current_round_type = "bez_treh"
@@ -1311,7 +1331,7 @@ class MyGame(arcade.Window):
             
     def move_to_vist_stage(self, order, index):
         self.order_stage = 0
-        self.vist_stage = 1
+        
         #set trump, for instance, "c" for 6c, "n" for 7n, etc
         #n being no trumps, and set value
         if int(order[0]) == 1:
@@ -1323,6 +1343,16 @@ class MyGame(arcade.Window):
         self.current_round_type = order #MS!!! fix this!
 
         self.vists[self.curr_bid_winner] = bidding_order[index]
+
+        #setup artificial, it will change when server sends open cards
+        if self.current_round["value"] == 10:
+            i = self.curr_bid_winner
+            self.vists[(i+1)%3] = "вист"
+            self.vists[(i+2)%3] = "пас"
+            if self.my_num == (i+1)%3:
+                self.send_open_to_server((i+1)%3, (i+2)%3, i)
+        else:
+            self.vist_stage = 1
 
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
