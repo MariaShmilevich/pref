@@ -46,7 +46,7 @@ class MyGame(arcade.Window):
 
         #host = socket.gethostbyname("bilbo.varphi.com")
         #self.client = Client(host, 1234, 1234, 1235)
-        self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
 
         self.players = ["Dummy", "Dummy", "Dummy"]
         """
@@ -67,7 +67,7 @@ class MyGame(arcade.Window):
         self.east_hand = []
 
         self.connecting_stage = 1 #connecting to server
-        self.waiting_stage = 0
+        self.connected = 0
 
         self.init_round()
         
@@ -853,8 +853,9 @@ class MyGame(arcade.Window):
         """
         super().on_update(delta_time)
         
-        if self.client.got_udp_msg:
-            self.parse_server_msg()
+        if self.connected:
+            if self.client.got_udp_msg:
+                self.parse_server_msg()
         
         if bidding_complete(self.bids) and self.bidding_stage:
             self.bidding_stage = 0 
@@ -1325,10 +1326,11 @@ class MyGame(arcade.Window):
 
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
-        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        self.client = Client("127.0.0.1", 1234, 1234, 1235)
         self.client.name = name
         self.connect_to_server()
         self.connecting_stage = 0
+        self.connected = 1
         self.waiting_stage = 1
 
     def disable_unnecessary_buttons(self):
