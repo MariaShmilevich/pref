@@ -209,7 +209,7 @@ class MyGame(arcade.Window):
             num = int(message["message"]["player_number"])
             order = message["message"]["playing"]
             index = int(message["message"]["index"])
-            if order == -3:
+            if order == "-3":
                 self.set_without_three()
             else:
                 self.move_to_vist_stage(order, index)
@@ -473,7 +473,7 @@ class MyGame(arcade.Window):
         pas_vist_button = RegularButton(210, 150, self.send_vist_pas, "пас")
         open_button = WideButton(70, 150, self.send_open, "в открытую")
         closed_button = WideButton(250, 150, self.send_closed, "взакрытую")
-        continue_button = WideButton(200, 300, self.send_continue, "продолжить")
+        continue_button = WideButton(200, 300, self.send_continue, "записать")
         offer_button = SmallButton(660, 56, self.send_offer, "согласен\n на")
         yes_button = RegularButton(200, 290, self.send_yes, "да")
         no_button = RegularButton(300, 290, self.send_no, "нет")
@@ -583,6 +583,8 @@ class MyGame(arcade.Window):
     def draw_connect(self):
         temp = "Please type your name in latin alphabet"
         arcade.draw_text(temp, 200,300, arcade.color.BLACK,font_size=16)
+        
+        #self.textbox_list[1].text_storage.text  = "Vasya" #MS!!!
         self.textbox_list[1].draw()
         self.button_list[5].draw()
 
@@ -637,7 +639,6 @@ class MyGame(arcade.Window):
                 " или выше\ntype 6s для 6 пик, 7c for 7 треф,\n" +\
                 "8d для 8 бубей, 9h для 9 червей,\n" +\
                 "10n для 10 без козыря и т.д.; -3 для без трех"
-        #Add -3 bez treh MS!!!
         arcade.draw_text(temp, 40,200, arcade.color.BLACK,font_size=16)
         self.textbox_list[0].draw()
         self.button_list[3].draw()
@@ -1304,10 +1305,8 @@ class MyGame(arcade.Window):
     def send_order(self):
         order = self.textbox_list[0].text_storage.text
         index = -1
-        print("order ", order)
-        print("game ", self.bids[self.curr_bid_winner][0])
         if order == "-3" and \
-            self.bids[self.curr_bid_winner][0] == 6:
+            int(self.bids[self.curr_bid_winner][0]) == 6:
             self.set_without_three()
         else:
             index = game_order_check(self.bids, order)
@@ -1323,9 +1322,12 @@ class MyGame(arcade.Window):
         self.textbox_list[0].text_storage.text="" #MS!!!
 
     def set_without_three(self):
-        print("I am here")
         self.current_round_type = "bez_treh"
         self.current_round["type"] = "bez_treh"
+        self.vists[self.curr_bid_winner] = "без_трех"
+        self.vists[(self.curr_bid_winner+1)%3] = "пас"
+        self.vists[(self.curr_bid_winner+2)%3] = "пас"
+
         self.order_stage = 0
         self.new_round_stage = 1
             
