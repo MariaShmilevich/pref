@@ -457,7 +457,7 @@ if __name__ == "__main__":
     parser.add_argument('--capacity',
                         dest='room_capacity',
                         help='Max players per room',
-                        default="2")
+                        default="3")
 
     args = parser.parse_args()
     rooms = Rooms(int(args.room_capacity))
