@@ -35,7 +35,7 @@ class Client:
         """
         Create a new room on server
         """
-        message = json.dumps({"action": "create", 
+        message = json.dumps({"action": "create",
                               #"payload": room_name,
                               "payload": {"room_name": room_name,
                                           "client_name": name},
@@ -54,10 +54,10 @@ class Client:
         Join an existing room
         """
         self.room_id = room_id
-        message = json.dumps({"action": "join", 
+        message = json.dumps({"action": "join",
                               #"payload": room_id,
                               "payload": {"room_id": room_id,
-                                          "client_name": name}, 
+                                          "client_name": name},
                               "identifier": self.identifier})
         self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock_tcp.connect(self.server_tcp)
@@ -164,10 +164,10 @@ class Client:
         try:
             data = json.loads(data)
             if data['success'] == "True":
-                print("Success parcing")
+                print("Success parsing")
                 return data['message']
             else:
-                print("Error parcing")
+                print("Error parsing")
                 raise Exception(data['message'])
         except ValueError:
             print(data)
@@ -183,7 +183,7 @@ class SocketThread(threading.Thread):
         self.lock = lock
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #self.sock.bind(addr)
-        
+
         self.connection_open = False #used to stop running on exit
         self.port = self.find_port_and_bind(addr)
         print("port= ",self.port)
@@ -219,7 +219,7 @@ class SocketThread(threading.Thread):
         """
         try:
             if "hand" in message["message"].keys():
-                x = list(map(int, message["message"]["hand"].split(','))) 
+                x = list(map(int, message["message"]["hand"].split(',')))
                 return x
         except ValueError:
             print(message)
