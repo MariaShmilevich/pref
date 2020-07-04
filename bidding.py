@@ -41,7 +41,7 @@ turn_msg_x_coord = [10,10,600]
 turn_msg_y_coord = [200,400,305]
 
 bid_msg_x_coord = [70,70,600]
-bid_msg_y_coord = [200,400,305]
+bid_msg_y_coord = [200,400,285]
 
 star_x_coord = [turn_msg_x_coord[0]+5,
                 turn_msg_x_coord[1]+5, 640]

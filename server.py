@@ -79,10 +79,9 @@ class UdpServer(Thread):
         self.is_listening = True
         self.udp_port = int(udp_port)
         self.msg = '{"success": %(success)s, "message":"%(message)s"}'
-        self.times_got_continue = 0 #Has to belong to room
 
     def deal(self):
-        for room_id, room in rooms.rooms.items():
+        for room in rooms.rooms.items():
             if room.time_to_deal:
                 room.deal()
                 for player in room.players:
@@ -92,8 +91,6 @@ class UdpServer(Thread):
                             player.identifier,
                             message,
                             self.sock)
-                    room.time_to_deal = 0
-                    time.sleep(0.5)
 
     def run(self):
         """
@@ -149,7 +146,6 @@ class UdpServer(Thread):
                                                 room_id,
                                                 payload['message'],
                                                 self.sock)
-                                time.sleep(0.5)
                             except:
                                 pass
                         elif action == "sendto":
@@ -159,7 +155,6 @@ class UdpServer(Thread):
                                                   payload['recipients'],
                                                   payload['message'],
                                                   self.sock)
-                                time.sleep(0.5)
                             except:
                                 pass
                         elif action == "server":
@@ -169,7 +164,6 @@ class UdpServer(Thread):
                                     i = payload["message"]["bidding_winner"]
                                     game_type = payload["message"]["type"]
                                     self.send_prikup(i, game_type, room_id, identifier)
-                                    time.sleep(0.5)
 
                                 if "how" in payload["message"].keys():
                                     pasing_num = int(payload["message"]["pasing_num"])
@@ -180,10 +174,12 @@ class UdpServer(Thread):
                                                         playing_num)
 
                                 if "next" in payload["message"].keys():
-                                    self.times_got_continue += 1
-                                    if self.times_got_continue == 3:
+                                    player_num = int(payload["message"]["player_number"])
+                                    
+                                    self.rooms.rooms[room_id].times_got_continue[player_num] = 1
+                                    if sum(self.rooms.rooms[room_id].times_got_continue) == 3:
                                         self.rooms.rooms[room_id].time_to_deal = 1
-                                        self.times_got_continue = 0
+                                        self.rooms.rooms[room_id].times_got_continue = [0,0,0]
 
                                 if "finalize" in payload["message"].keys():
                                     player_num = int(payload["message"]["player_number"])
@@ -241,13 +237,11 @@ class UdpServer(Thread):
                           playing_id,
                           message,
                           self.sock)
-        time.sleep(0.5)
         self.rooms.sendto(identifier,
                           room_id,
                           pasing_id,
                           message,
                           self.sock)
-        time.sleep(0.5)
         message = {"how":"open",
                    "pasing_hand":str(pasing_hand).strip('[]')}         
         self.rooms.sendto(identifier,
@@ -255,13 +249,11 @@ class UdpServer(Thread):
                           playing_id,
                           message,
                           self.sock)
-        time.sleep(0.5)
         self.rooms.sendto(identifier,
                           room_id,
                           visting_id,
                           message,
                           self.sock)
-        time.sleep(0.5)
 
     def stop(self):
         """
@@ -386,7 +378,7 @@ class TcpServer(Thread):
                                     room_id)
                     client.send_tcp(True, room_id, sock)
 
-                    #Do only once; send players' names and order
+                    #Do only once; send UDP players' names and order
                     if self.rooms.rooms[room_id].is_full():
                         for player in self.rooms.rooms[room_id].players:
                             message = {"player_number":str(player.num),
@@ -396,7 +388,6 @@ class TcpServer(Thread):
                                                 room_id,
                                                 message,
                                                 self.sock)
-                            time.sleep(0.5)
                             print(player.name, " joined room")
                             self.rooms.rooms[room_id].time_to_deal = 1
                 except RoomNotFound:

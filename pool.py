@@ -193,7 +193,7 @@ class Score:
         self.otv_vist_factor = 1 
         #For pool writing:
         # Пуля: Юг, Север, Восток
-        self.pool = [0,0,0]
+        self.pool = [18,18,18]
         # Гора: Юг, Север, Восток
         self.hill = [20,20,20]
         # Висты: юг на север и т.д.
@@ -306,6 +306,8 @@ class Score:
     def help_by_pool(self, i, help_part, vist_penalty):
         if len(vist_penalty) == 0 or len(vist_penalty) == 2:
             ind = self.who_else_has_better_pool(i)
+            if ind < 0:
+                return help_part
             remainder = self.help_pool_iteration(i, ind, help_part)
             if remainder > 0:
                 other_ind = 3 - (i + ind)

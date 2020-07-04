@@ -159,10 +159,10 @@ class Room:
         else:
             self.name = self.identifier
         self.deck = list(range(32))
-        self.hands = [[],[],[],[]] #MS!!!
+        #self.hands = [[],[],[],[]] #MS!!!
         self.prikup = []
         self.time_to_deal = 0
-        self.times_got_continue = 0
+        self.times_got_continue = [0,0,0]
         self.request_to_finish = [0,0,0]
 
     def join(self, player):

@@ -1,12 +1,3 @@
-"""
-Starting Template
-
-Once you have learned how to use classes, you can begin your program with this
-template.
-
-If Python and Arcade are installed, this example can be run from the command line with:
-python -m arcade.examples.starting_template
-"""
 import arcade
 
 SCREEN_WIDTH = 800
@@ -20,15 +11,8 @@ from bidding import *
 from pool import *
 from client import *
 
+import time
 from datetime import datetime
-from random import seed
-from random import randint
-from random import shuffle
-
-import socket
-
-#seed(1)
-seed(datetime.now())
 
 class MyGame(arcade.Window):
     """
@@ -43,6 +27,8 @@ class MyGame(arcade.Window):
         super().__init__(width, height, title)
 
         self.theme = arcade.Theme()
+
+        self.client = None
 
         self.players = ["Dummy", "Dummy", "Dummy"]
         """
@@ -118,7 +104,6 @@ class MyGame(arcade.Window):
         self.choosing_stage = 0 
         self.new_round_stage = 0
         self.playing_stage = 0
-        self.writing_stage = 0 #MS!!!
         self.show_stage = 0
 
         self.times_prikup_opened = 0
@@ -137,12 +122,16 @@ class MyGame(arcade.Window):
         """ 
         Parse UDP message from server
         """
-        message = self.client.server_message
+
+        if len(self.client.server_message) == 0:
+            return
+
+        message = self.client.server_message.pop(0)
 
         if not "message" in message.keys():
             return
-        print("received msg: ", message)
-        self.client.got_udp_msg = 0
+        print("time = ",time.time()) #MS!!!
+        print("received msg: ", message) #MS!!!
         #Done at the beginning: setup players' order & names
         if "player_name" in message["message"].keys():
             i = int(message["message"]["player_number"])
@@ -239,8 +228,7 @@ class MyGame(arcade.Window):
                         message["message"]["pasing_hand"].split(',')))
                     self.setup_open_hand(pas_num_list, index_p)
                 
-                #Add vists for display MS!!!
-                #remove artificial pas and vist
+                #Add vists for display
                 if self.vists[self.curr_bid_winner][0] == "м":
                     self.vists_for_display[self.curr_bid_winner] = \
                         self.vists[self.curr_bid_winner]
@@ -524,11 +512,11 @@ class MyGame(arcade.Window):
         self.create_button_list()
         
         self.textbox_list.append(arcade.TextBox(70, 300, width=80,\
-            theme=arcade.Theme(),font_size=16))
+            theme=arcade.Theme(),font_size=16)) #order
         self.textbox_list.append(arcade.TextBox(200, 400, width=200,\
-            theme=arcade.Theme(),font_size=16))
+            theme=arcade.Theme(),font_size=16)) #name
         self.textbox_list.append(arcade.TextBox(750, 56, width=60,\
-            theme=arcade.Theme(),font_size=12)) #MS!!! offer
+            theme=arcade.Theme(),font_size=12)) #offer
           
         #for drawing the pool
         self.shape_list = make_pool(320,300,600,400)
@@ -580,7 +568,7 @@ class MyGame(arcade.Window):
         temp = "Please type your name in latin alphabet"
         arcade.draw_text(temp, 200,300, arcade.color.BLACK,font_size=16)
         
-        #self.textbox_list[1].text_storage.text  = "Vasya" #MS!!!
+        #self.textbox_list[1].text_storage.text  = "" #MS!!! doesn't work
         self.textbox_list[1].draw()
         self.button_list[5].draw()
 
@@ -699,7 +687,8 @@ class MyGame(arcade.Window):
     def draw_playing(self):
         self.current_trick_list.draw()
         self.collected_tricks_list.draw()
-        self.button_list[15].draw()
+        if len(self.collected_tricks_list) > 0:
+            self.button_list[15].draw()
         if self.show_last_trick:
             self.last_trick_list.draw()
         draw_star(star_x_coord[(self.current_turn + self.my_shift)%3],
@@ -714,8 +703,6 @@ class MyGame(arcade.Window):
             self.button_list[11].disable()
         if self.offered_to_end_round:
             self.draw_accepting_offer()
-            
-        #self.disable_buttons([0,1,2,3,5,6,7,8,9,10]) #MS!!!
 
     def draw_accepting_offer(self):
         temp = self.players[self.current_offer["offering_hand"]]+ \
@@ -731,17 +718,6 @@ class MyGame(arcade.Window):
         else:
             self.disable_buttons([12,13])
 
-    def draw_writing(self):
-        #self.num_of_tricks
-        text = "South " + str(self.num_of_tricks[0]) +"\n" +\
-                "North " + str(self.num_of_tricks[1]) +"\n" +\
-                "East " + str(self.num_of_tricks[2])
-        arcade.draw_text(text,
-                         turn_msg_x_coord[2], 
-                         turn_msg_y_coord[2],
-                         arcade.color.BLACK, 
-                         font_size=16)
-
     def on_draw(self):
         """
         Render the screen.
@@ -754,9 +730,6 @@ class MyGame(arcade.Window):
         #super().on_draw()
         
         # Call draw() on all your sprite lists below
-
-        #self.draw_frame()
-
         
         if self.connecting_stage:
             self.draw_connect()
@@ -826,11 +799,12 @@ class MyGame(arcade.Window):
 
         if self.playing_stage:
             self.draw_playing()
-
+        """
         if self.writing_stage:
             self.draw_writing()
             self.deal_new_round() #MS!!!
-            self.turn = (self.turn + 1)%3   
+            self.turn = (self.turn + 1)%3 
+        """  
     
 
         if self.show_stage:
@@ -861,9 +835,10 @@ class MyGame(arcade.Window):
         super().on_update(delta_time)
         
         if self.connected:
-            if self.client.got_udp_msg:
+            if len(self.client.server_message) > 0:
                 self.parse_server_msg()
-        
+
+        #MS!!! make a function
         if bidding_complete(self.bids) and self.bidding_stage:
             self.bidding_stage = 0 
             self.curr_bid_winner = who_won_bidding(self.bids)
@@ -891,7 +866,7 @@ class MyGame(arcade.Window):
         if self.score.finished:
             pass #say something MS!!!
 
-        self.disable_unnecessary_buttons() #MS!!!
+        self.disable_unnecessary_buttons()
 
     def on_key_press(self, key, key_modifiers):
         """
@@ -927,7 +902,6 @@ class MyGame(arcade.Window):
         Called when the user presses a mouse button.
         """
         if self.playing_stage:
-            #self.check_trick(x,y)
             self.put_card(x,y)
             if button == arcade.MOUSE_BUTTON_LEFT or \
                 button == arcade.MOUSE_BUTTON_RIGHT:
@@ -982,7 +956,7 @@ class MyGame(arcade.Window):
         self.current_trick[player_num] = card
         self.current_trick_list.append(card.face)
         if player_num == self.my_num:
-            self.hand.pop(i) #MS!!!
+            self.hand.pop(i)
             self.south_list.pop(i) 
             card.set_south_trick_coord()
         elif player_num == (self.my_num + 1)%3:
@@ -1089,11 +1063,6 @@ class MyGame(arcade.Window):
         else:
             return False
 
-    def connect(self):
-        pass
-        #self.order_stage = 0
-        #print(self.order_stage)
-
     def bid_reg(self):
         #self.order_stage = 0 MS???
         if self.button_list[1].text == "стоп":
@@ -1178,6 +1147,8 @@ class MyGame(arcade.Window):
         playing_num = self.curr_bid_winner
         self.send_open_to_server(self.my_num, 
                                  pasing_num, playing_num)
+        self.choosing_stage = 0
+        self.playing_stage = 1
 
     def send_open_to_server(self, visting_num, pasing_num, playing_num):
         message = {"visting_num":str(visting_num),
@@ -1201,8 +1172,6 @@ class MyGame(arcade.Window):
         self.score.calculate_pool(self.current_round_type, 
                                   self.num_of_tricks,
                                   self.vists)
-        print("pool ", self.score.pool)
-        print("hill ", self.score.hill)
         message = {"player_number":str(self.my_num),
                    "next":"next"}
         self.client.send(message, "server")
@@ -1355,8 +1324,8 @@ class MyGame(arcade.Window):
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
         host = socket.gethostbyname("bilbo.varphi.com")
-        self.client = Client(host, 1234, 1234, 1235)
-        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        #self.client = Client(host, 1234, 1234, 1235)
+        self.client = Client("127.0.0.1", 1234, 1234, 1235)
         self.client.name = name
         self.connect_to_server()
         self.connecting_stage = 0

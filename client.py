@@ -15,7 +15,7 @@ class Client:
         Create a game server client
         """
         self.identifier = None
-        self.server_message = {}
+        self.server_message = []
         self.room_id = None
         self.client_udp = ("0.0.0.0", client_port_udp)
         self.lock = threading.Lock()
@@ -27,7 +27,6 @@ class Client:
         self.server_tcp = (server_host, server_port_tcp)
 
         self.name = None
-        self.got_udp_msg = 0
 
         self.register()
 
@@ -122,6 +121,10 @@ class Client:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.sendto(message.encode(), self.server_udp)
 
+        #for testing MS!!!
+        print("time= ", time.time()) 
+        print("sent msg: ", message)
+
     def sendto(self, recipients, message):
         """
         Send data to one or more player in room
@@ -207,23 +210,11 @@ class SocketThread(threading.Thread):
             data, addr = self.sock.recvfrom(1024)
             self.lock.acquire()
             try:
-                self.client.server_message = json.loads(data)
-                self.client.got_udp_msg = 1
+                self.client.server_message.append(json.loads(data))
             finally:
                 self.lock.release()
             #time.sleep(1)
-
-    def parse_udp_data(self, message):
-        """
-        Parse UDP message from server
-        """
-        try:
-            if "hand" in message["message"].keys():
-                x = list(map(int, message["message"]["hand"].split(',')))
-                return x
-        except ValueError:
-            print(message)
-
+    
     def stop(self):
         """
         Stop thread

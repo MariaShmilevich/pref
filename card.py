@@ -1,7 +1,15 @@
 import arcade
 SF = .11
 from random import shuffle
+import sys
+from os import path
+bundle_dir = getattr(sys, '_MEIPASS', 
+             path.abspath(path.dirname(__file__)))
+path_to_cards = path.join(bundle_dir, 'sprites/cards')
+
 #num,value,suit,face
+
+"""
 picz = [[0,7,"s","sprites/cards/7_of_spades.png"],
         [1,8,"s","sprites/cards/8_of_spades.png"],
         [2,9,"s","sprites/cards/9_of_spades.png"],
@@ -38,6 +46,44 @@ picz = [[0,7,"s","sprites/cards/7_of_spades.png"],
         [30,13,"h","sprites/cards/king_of_hearts2.png"],
         [31,14,"h","sprites/cards/ace_of_hearts.png"]
 ]
+"""
+
+picz = [[0,7,"s",path_to_cards+"/7_of_spades.png"],
+        [1,8,"s",path_to_cards+"/8_of_spades.png"],
+        [2,9,"s",path_to_cards+"/9_of_spades.png"],
+        [3,10,"s",path_to_cards+"/10_of_spades.png"],
+        [4,11,"s",path_to_cards+"/jack_of_spades2.png"],
+        [5,12,"s",path_to_cards+"/queen_of_spades2.png"],
+        [6,13,"s",path_to_cards+"/king_of_spades2.png"],
+        [7,14,"s",path_to_cards+"/ace_of_spades2.png"],
+
+        [8,7,"c",path_to_cards+"/7_of_clubs.png"],
+        [9,8,"c",path_to_cards+"/8_of_clubs.png"],
+        [10,9,"c",path_to_cards+"/9_of_clubs.png"],
+        [11,10,"c",path_to_cards+"/10_of_clubs.png"],
+        [12,11,"c",path_to_cards+"/jack_of_clubs2.png"],
+        [13,12,"c",path_to_cards+"/queen_of_clubs2.png"],
+        [14,13,"c",path_to_cards+"/king_of_clubs2.png"],
+        [15,14,"c",path_to_cards+"/ace_of_clubs.png"],
+
+        [16,7,"d",path_to_cards+"/7_of_diamonds.png"],
+        [17,8,"d",path_to_cards+"/8_of_diamonds.png"],
+        [18,9,"d",path_to_cards+"/9_of_diamonds.png"],
+        [19,10,"d",path_to_cards+"/10_of_diamonds.png"],
+        [20,11,"d",path_to_cards+"/jack_of_diamonds2.png"],
+        [21,12,"d",path_to_cards+"/queen_of_diamonds2.png"],
+        [22,13,"d",path_to_cards+"/king_of_diamonds2.png"],
+        [23,14,"d",path_to_cards+"/ace_of_diamonds.png"],
+
+        [24,7,"h",path_to_cards+"/7_of_hearts.png"],
+        [25,8,"h",path_to_cards+"/8_of_hearts.png"],
+        [26,9,"h",path_to_cards+"/9_of_hearts.png"],
+        [27,10,"h",path_to_cards+"/10_of_hearts.png"],
+        [28,11,"h",path_to_cards+"/jack_of_hearts2.png"],
+        [29,12,"h",path_to_cards+"/queen_of_hearts2.png"],
+        [30,13,"h",path_to_cards+"/king_of_hearts2.png"],
+        [31,14,"h",path_to_cards+"/ace_of_hearts.png"]
+]
 
 class Card:
     def __init__(self,num,value,suit,face):
@@ -46,7 +92,7 @@ class Card:
         self.suit = suit
         self.face = face
         self.back = \
-            arcade.Sprite("sprites/cards/back_red.png",SF)
+            arcade.Sprite(path_to_cards+"/back_red.png",SF)
         self.trump = 0
         self.face.guid = num
 
@@ -103,8 +149,8 @@ class DummyCard(Card):
         self.num = 0
         self.value = 0
         self.suit = None
-        self.face = arcade.Sprite("sprites/cards/back_red.png",SF)
-        self.back = arcade.Sprite("sprites/cards/back_red.png",SF)
+        self.face = arcade.Sprite(path_to_cards+"/back_red.png",SF)
+        self.back = arcade.Sprite(path_to_cards+"/back_red.png",SF)
        
 def get_key(card):
     if (card.suit == "h"):
