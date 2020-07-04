@@ -1324,8 +1324,8 @@ class MyGame(arcade.Window):
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
         host = socket.gethostbyname("bilbo.varphi.com")
-        #self.client = Client(host, 1234, 1234, 1235)
-        self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        self.client = Client(host, 1234, 1234, 1235)
+        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
         self.client.name = name
         self.connect_to_server()
         self.connecting_stage = 0
