@@ -81,7 +81,7 @@ class UdpServer(Thread):
         self.msg = '{"success": %(success)s, "message":"%(message)s"}'
 
     def deal(self):
-        for room in rooms.rooms.items():
+        for _room_id, room in rooms.rooms.items():
             if room.time_to_deal:
                 room.deal()
                 for player in room.players:
