@@ -15,7 +15,7 @@ def main_loop(tcp_port, udp_port, rooms):
     lock = Lock()
     udp_server = UdpServer(udp_port, rooms, lock)
     tcp_server = TcpServer(tcp_port, rooms, lock)
-    udp_server.start()
+    #udp_server.start()
     tcp_server.start()
     is_running = True
     print("Simple Game Server.")
@@ -272,7 +272,7 @@ class TcpServer(Thread):
         self.tcp_port = int(tcp_port)
         self.rooms = rooms
         self.is_listening = True
-        self.msg = '{"success": "%(success)s", "message":"%(message)s"}'
+        self.threads = []
 
     def run(self):
         """
@@ -284,20 +284,61 @@ class TcpServer(Thread):
         self.sock.setblocking(0)
         self.sock.settimeout(5)
         time_reference = time.time()
-        self.sock.listen(1)
+        i=0
+
+        while self.is_listening: 
+            self.sock.listen(3)
+            try:
+                conn, addr = self.sock.accept()
+                print("accepted")
+            except socket.timeout:
+                continue
+            newthread = TcpListenerThread(conn, addr, self.rooms, self.lock) 
+            newthread.start() 
+            print("Started TCP listener thread")
+            self.threads.append(newthread)
+            i += 1
+            if i == 3:
+                newthread = TcpRoomThread(self.rooms, self.lock) 
+                newthread.start() 
+                print("Started TCP Room thread")
+                self.threads.append(newthread)
+                #i = 0
+                #later correct for individ. room and lock MS!!!
+
+        for t in self.threads: 
+            t.stop()
+            t.join() 
+
+    def stop(self):
+        """
+        Stop tcp data
+        """
+        self.sock.close()
+
+class TcpListenerThread(Thread): 
+ 
+    def __init__(self, conn, addr, rooms, lock): 
+        Thread.__init__(self) 
+        self.conn = conn
+        self.addr = addr
+        self.lock = lock
+        self.rooms = rooms 
+        self.is_listening = True
+        self.msg = '{"success": "%(success)s", "message":"%(message)s"}'
+        
+    def run(self): 
 
         while self.is_listening:
 
             #  Clean empty rooms
+            """
             if time_reference + 60 < time.time():
                 self.rooms.remove_empty()
                 time_reference = time.time()
-            try:
-                conn, addr = self.sock.accept()
-            except socket.timeout:
-                continue
-
-            data = conn.recv(1024)
+            """
+            
+            data = self.conn.recv(1024)
             try:
                 data = json.loads(data)
                 action = data['action']
@@ -320,8 +361,9 @@ class TcpServer(Thread):
                     pass  # Silently pass
                 self.lock.acquire()
                 try:
-                    self.route(conn,
-                               addr,
+                    self.route(self.conn,
+                               self.addr,
+                               data,
                                action,
                                payload,
                                identifier,
@@ -329,19 +371,27 @@ class TcpServer(Thread):
                 finally:
                     self.lock.release()
             except KeyError:
-                print("Json from %s:%s is not valid" % addr)
-                conn.send("Json is not valid")
+                print("Json from %s:%s is not valid" % self.addr)
+                #self.conn.send("Json is not valid")
             except ValueError:
-                print("Message from %s:%s is not valid json string" % addr)
-                conn.send("Message is not a valid json string")
+                print("Message from %s:%s is not valid json string" % self.addr)
+                #self.conn.send("Message is not a valid json string")
 
-            conn.close()
+            #conn.close()
 
-        self.stop()
+        #self.stop() #MS!!!
+
+    def stop(self):
+        """
+        Stop tcp data
+        """
+        self.is_listening = False
+        self.conn.close()
 
     def route(self,
               sock,
               addr,
+              data,
               action,
               payload,
               identifier=None,
@@ -362,11 +412,12 @@ class TcpServer(Thread):
         if identifier is not None:
             if identifier not in self.rooms.players.keys():
                 print("Unknown identifier %s for %s:%s" % (identifier, addr[0], addr[1]))
-                sock.send(self.msg % {"success": "False", "message": "Unknown identifier"})
+                #sock.send(self.msg % {"success": "False", "message": "Unknown identifier"})
                 return 0
 
             # Get client object
             client = self.rooms.players[identifier]
+            self.rooms.players[identifier].tcp_conn = sock
 
             if action == "join":
                 try:
@@ -380,6 +431,10 @@ class TcpServer(Thread):
 
                     #Do only once; send UDP players' names and order
                     if self.rooms.rooms[room_id].is_full():
+                        #self.rooms.rooms[room_id].time_to_deal = 1 
+                        data['action'] = "start"
+                        self.rooms.rooms[room_id].message_queue.append(data)
+                        """
                         for player in self.rooms.rooms[room_id].players:
                             message = {"player_number":str(player.num),
                                        "player_name":player.name}
@@ -387,9 +442,11 @@ class TcpServer(Thread):
                             self.rooms.send2all(player.identifier,
                                                 room_id,
                                                 message,
-                                                self.sock)
+                                                self.conn)
+                                                #self.sock)
                             print(player.name, " joined room")
                             self.rooms.rooms[room_id].time_to_deal = 1
+                        """
                 except RoomNotFound:
                     client.send_tcp(False, room_id, sock)
                 except RoomFull:
@@ -422,14 +479,160 @@ class TcpServer(Thread):
                 except NotInRoom:
                     client.send_tcp(False, room_id, sock)
             else:
-                sock.send_tcp(self.msg % {"success": "False",
-                                          "message": "You must register"})
+                #this is a game logic msg previously processed by UDP
+                self.rooms.rooms[room_id].message_queue.append(data)
+                
+class TcpRoomThread(Thread): 
+ 
+    def __init__(self, rooms, lock): 
+        Thread.__init__(self) 
+        self.lock = lock
+        self.rooms = rooms 
+        self.is_running = True
+        self.sock = 12345 #Dummy, will remove MS!!!
+
+    def deal(self, room):
+        #for _room_id, room in self.rooms.rooms.items(): #MS!!!
+        if room.time_to_deal:
+            room.deal()
+            for player in room.players:
+                message = {"hand":str(player.hand).strip('[]')}
+                self.rooms.sendto(player.identifier,
+                        room.identifier,
+                        player.identifier,
+                        message,
+                        self.sock)
+
+    def run(self): 
+        while self.is_running:
+            self.lock.acquire()
+            for room_id, room in self.rooms.rooms.items():
+                self.deal(room)
+                if len(room.message_queue) > 0:
+                    msg = room.message_queue.pop(0)
+                    self.process(room_id, msg)
+            self.lock.release()
+            time.sleep(0.2)
+
+    def process(self, room_id, msg):
+        if msg['action'] == 'start':
+            for player in self.rooms.rooms[room_id].players:
+                message = {"player_number":str(player.num),
+                            "player_name":player.name}
+                #send to all:
+                self.rooms.send2all(player.identifier,
+                                                room_id,
+                                                message,
+                                                self.sock)
+                                                #player.tcp_conn)
+                                                
+                print(player.name, " joined room")
+                self.rooms.rooms[room_id].time_to_deal = 1
+        elif msg['action'] == "send":
+            try:
+                payload = msg['payload']
+                self.rooms.send(identifier, room_id,
+                                payload['message'],
+                                self.sock)
+            except:
+                pass
+        elif msg['action'] == "server":
+            self.process_server(room_id, msg)
+
+
+    def process_server(self, room_id, msg):
+        try:
+            #parse
+            payload = msg['payload']
+            identifier = msg['identifier']
+            if "bidding_winner" in payload["message"].keys():
+                i = payload["message"]["bidding_winner"]
+                game_type = payload["message"]["type"]
+                self.send_prikup(i, game_type, room_id, identifier)
+
+            if "how" in payload["message"].keys():
+                pasing_num = int(payload["message"]["pasing_num"])
+                playing_num = int(payload["message"]["playing_num"])
+                visting_num = int(payload["message"]["visting_num"])
+                self.send_play_open(room_id, identifier,
+                                    visting_num, pasing_num, 
+                                    playing_num)
+
+            if "next" in payload["message"].keys():
+                player_num = int(payload["message"]["player_number"])
+                                    
+                self.rooms.rooms[room_id].times_got_continue[player_num] = 1
+                if sum(self.rooms.rooms[room_id].times_got_continue) == 3:
+                    self.rooms.rooms[room_id].time_to_deal = 1
+                    self.rooms.rooms[room_id].times_got_continue = [0,0,0]
+
+            if "finalize" in payload["message"].keys():
+                player_num = int(payload["message"]["player_number"])
+                self.send_finalize(room_id, identifier, player_num, "request")
+                self.rooms.rooms[room_id].request_to_finish[player_num] = 1
+                if sum(self.rooms.rooms[room_id].request_to_finish) == 3:
+                    self.send_finalize(room_id, identifier, player_num, "all")
+        except:
+            pass
+
+    def send_prikup(self, i, game_type, room_id, identifier):
+        message = {"prikup":str(self.rooms.rooms[room_id].prikup).strip('[]'),
+                   "type":str(game_type)}
+        self.rooms.send2all(identifier,
+                            room_id,
+                            message,
+                            self.sock)
+
+    def send_finalize(self, room_id, identifier, player_num, request):
+        message = {"finalize":str(request),
+                   "player_number":str(player_num)}
+        self.rooms.send2all(identifier,
+                            room_id,
+                            message,
+                            self.sock)
+
+    def send_play_open(self, room_id, identifier,
+                       visting_num, pasing_num, playing_num):
+        for player in self.rooms.rooms[room_id].players:
+            if player.num == visting_num:
+                visting_id = player.identifier
+                visting_hand = player.hand
+                print("visthand ",visting_hand)
+            elif player.num == pasing_num:
+                pasing_id = player.identifier
+                pasing_hand = player.hand
+                print("pashand ",pasing_hand)
+            elif player.num == playing_num:
+                playing_id = player.identifier
+        message = {"how":"open",
+                   "visting_hand":str(visting_hand).strip('[]')}         
+        self.rooms.sendto(identifier,
+                          room_id,
+                          playing_id,
+                          message,
+                          self.sock)
+        self.rooms.sendto(identifier,
+                          room_id,
+                          pasing_id,
+                          message,
+                          self.sock)
+        message = {"how":"open",
+                   "pasing_hand":str(pasing_hand).strip('[]')}         
+        self.rooms.sendto(identifier,
+                          room_id,
+                          playing_id,
+                          message,
+                          self.sock)
+        self.rooms.sendto(identifier,
+                          room_id,
+                          visting_id,
+                          message,
+                          self.sock)
 
     def stop(self):
-        """
-        Stop tcp data
-        """
-        self.sock.close()
+        self.is_running = False
+
+
 
 
 if __name__ == "__main__":

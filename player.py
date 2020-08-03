@@ -14,6 +14,8 @@ class Player:
         self.udp_addr = (addr[0], int(udp_port))
         self.num = 0
         self.name = None
+        self.tcp_conn = None
+        self.out_message = [] #MS!!!
         self.hand = []
 
     def send_tcp(self, success, data, sock):
@@ -26,7 +28,7 @@ class Player:
         message = json.dumps({"success": success_string, "message": data})
         sock.send(message.encode())
 
-    def send_udp(self, player_identifier, message):
+    def send_udp_old(self, player_identifier, message):
         """
         Send udp packet to player (game logic interaction)
         """
@@ -40,3 +42,13 @@ class Player:
             #sock.close()
         except socket.error as e:
             print(e)
+
+    def send_udp(self, player_identifier, message):
+        """
+        Send tcp packet to player (game logic interaction)
+        previously handled by UDP
+        """
+        message = json.dumps({player_identifier:str(self.num),
+                                  "message":message})
+        self.tcp_conn.send(message.encode())
+        

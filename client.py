@@ -18,17 +18,23 @@ class Client:
         self.server_message = []
         self.room_id = None
         self.client_udp = ("0.0.0.0", client_port_udp)
-        self.lock = threading.Lock()
-        self.server_listener = SocketThread(self.client_udp,
-                                            self,
-                                            self.lock)
-        self.server_listener.start()
+        #self.server_listener.start()
         self.server_udp = (server_host, server_port_udp)
         self.server_tcp = (server_host, server_port_tcp)
+
+        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock_tcp.connect(self.server_tcp)
 
         self.name = None
 
         self.register()
+        #self.setup()
+        self.lock = threading.Lock()
+        self.server_listener = SocketThread(self.client_udp,
+                                            self,
+                                            self.lock,
+                                            self.sock_tcp)
+        #self.server_listener.start()
 
     def create_room(self, name, room_name=None):
         """
@@ -40,11 +46,11 @@ class Client:
                                           "client_name": name},
                               "identifier": self.identifier})
 
-        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_tcp.connect(self.server_tcp)
+        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
         data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close()
+        #self.sock_tcp.close()
         message = self.parse_data(data)
         self.room_id = message
 
@@ -58,24 +64,26 @@ class Client:
                               "payload": {"room_id": room_id,
                                           "client_name": name},
                               "identifier": self.identifier})
-        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_tcp.connect(self.server_tcp)
+        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
         data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close()
+        #self.sock_tcp.close()
         message = self.parse_data(data)
         self.room_id = message
+
+        self.server_listener.start() #MS!!!
 
     def autojoin(self):
         """
         Join the first non-full room
         """
         message = json.dumps({"action": "autojoin", "identifier": self.identifier})
-        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_tcp.connect(self.server_tcp)
+        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
         data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close()
+        #self.sock_tcp.close()
         message = self.parse_data(data)
         self.room_id = message
 
@@ -88,11 +96,11 @@ class Client:
             "room_id": self.room_id,
             "identifier": self.identifier
         })
-        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_tcp.connect(self.server_tcp)
+        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
         data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close()
+        self.sock_tcp.close() #MS!!!
         message = self.parse_data(data)
 
     def get_rooms(self):
@@ -100,11 +108,14 @@ class Client:
         Get the list of remote rooms
         """
         message = json.dumps({"action": "get_rooms", "identifier": self.identifier})
-        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_tcp.connect(self.server_tcp)
+        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock_tcp.connect(self.server_tcp)
+        print("msg ", message)
         self.sock_tcp.send(message.encode())
+        print("sent")
         data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close()
+        print("rcv")
+        #self.sock_tcp.close()
         message = self.parse_data(data)
         return message
 
@@ -118,8 +129,9 @@ class Client:
             "room_id": self.room_id,
             "identifier": self.identifier
         })
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto(message.encode(), self.server_udp)
+        #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #sock.sendto(message.encode(), self.server_udp)
+        self.sock_tcp.send(message.encode())
 
         #for testing MS!!!
         print("time= ", time.time()) 
@@ -138,8 +150,9 @@ class Client:
             "room_id": self.room_id,
             "identifier": self.identifier
         })
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto(message, self.server_udp)
+        #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        #sock.sendto(message, self.server_udp)
+        self.sock_tcp.send(message.encode())
 
     def register(self):
         """
@@ -148,17 +161,39 @@ class Client:
         message = json.dumps({
             "action": "register",
             #"payload": self.client_udp[1]
-            "payload": self.server_listener.port
+            #"payload": self.server_listener.port
+            "payload": "1234"
             #"payload": {"name": self.name,
                         #"port": self.server_listener.port}
         })
-        self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock_tcp.connect(self.server_tcp)
+        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
+        print("sent")
         data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close()
+        print("rcv")
+        #self.sock_tcp.close()
         message = self.parse_data(data)
         self.identifier = message
+        print("id= ", self.identifier)
+
+    def setup(self):
+        rooms = self.get_rooms()
+        print("got room") #MS!!!
+        if rooms is not None and len(rooms) != 0:
+            for room in rooms:
+                print("Room %s (%d/%d)" % (room["name"], 
+                    int(room["nb_players"]), int(room["capacity"])))
+
+            # Get first room for tests
+            selected_room = rooms[0]['id']
+            try:
+                self.join_room(selected_room, self.name)
+            except Exception as e:
+                print("Error : %s" % str(e))
+        else:
+            self.create_room(self.name, "Pref room")
+            print("Client created room  %s" % self.room_id)
 
     def parse_data(self, data):
         """
@@ -177,19 +212,25 @@ class Client:
 
 
 class SocketThread(threading.Thread):
-    def __init__(self, addr, client, lock):
+    def __init__(self, addr, client, lock, sock):
         """
         Client udp connection
         """
         threading.Thread.__init__(self)
         self.client = client
         self.lock = lock
+        self.sock = sock
+
+        self.connection_open = True
+
+        """
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #self.sock.bind(addr)
 
         self.connection_open = False #used to stop running on exit
         self.port = self.find_port_and_bind(addr)
         print("port= ",self.port)
+        """
 
     def find_port_and_bind(self, addr):
         ip = addr[0]
@@ -211,9 +252,11 @@ class SocketThread(threading.Thread):
             self.lock.acquire()
             try:
                 self.client.server_message.append(json.loads(data))
+            except:
+                pass
             finally:
                 self.lock.release()
-            #time.sleep(1)
+            time.sleep(0.1)
     
     def stop(self):
         """

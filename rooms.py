@@ -164,6 +164,7 @@ class Room:
         self.time_to_deal = 0
         self.times_got_continue = [0,0,0]
         self.request_to_finish = [0,0,0]
+        self.message_queue = []
 
     def join(self, player):
         """

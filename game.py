@@ -489,19 +489,28 @@ class MyGame(arcade.Window):
 
     def connect_to_server(self):
         rooms = self.client.get_rooms()
+        print("got room") #MS!!!
         if rooms is not None and len(rooms) != 0:
             for room in rooms:
                 print("Room %s (%d/%d)" % (room["name"], int(room["nb_players"]), int(room["capacity"])))
 
             # Get first room for tests
             selected_room = rooms[0]['id']
+            """
             try:
                 self.client.join_room(selected_room, self.client.name)
             except Exception as e:
                 print("Error : %s" % str(e))
+            """
         else:
             self.client.create_room(self.client.name, "Pref room")
             print("Client created room  %s" % self.client.room_id)
+            selected_room = self.client.room_id
+
+        try:
+            self.client.join_room(selected_room, self.client.name)
+        except Exception as e:
+            print("Error : %s" % str(e))
             
     def setup(self):
         #self.connect_to_server()
@@ -1323,11 +1332,11 @@ class MyGame(arcade.Window):
 
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
-        host = socket.gethostbyname("bilbo.varphi.com")
-        self.client = Client(host, 1234, 1234, 1235)
-        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        #host = socket.gethostbyname("bilbo.varphi.com")
+        #self.client = Client(host, 1234, 1234, 1235)
+        self.client = Client("127.0.0.1", 1234, 1234, 1235)
         self.client.name = name
-        self.connect_to_server()
+        self.connect_to_server() #Done on client now MS!!!
         self.connecting_stage = 0
         self.connected = 1
         self.waiting_stage = 1
