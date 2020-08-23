@@ -1364,7 +1364,7 @@ class MyGame(arcade.Window):
         super().close()
         
         self.client.leave_room()
-        self.client.server_listener.stop()
+        #self.client.server_listener.stop()
         
 
 

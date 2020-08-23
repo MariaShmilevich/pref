@@ -30,7 +30,7 @@ class Client:
         self.register()
         #self.setup()
         self.lock = threading.Lock()
-        self.server_listener = SocketThread(self.client_udp,
+        self.server_listener = SocketThread(
                                             self,
                                             self.lock,
                                             self.sock_tcp)
@@ -99,9 +99,10 @@ class Client:
         #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
-        data = self.sock_tcp.recv(1024)
-        self.sock_tcp.close() #MS!!!
-        message = self.parse_data(data)
+
+        #data = self.sock_tcp.recv(1024)
+        #message = self.parse_data(data)
+        self.server_listener.stop()
 
     def get_rooms(self):
         """
@@ -195,24 +196,37 @@ class Client:
             self.create_room(self.name, "Pref room")
             print("Client created room  %s" % self.room_id)
 
-    def parse_data(self, data):
+    def parse_data_old(self, data):
         """
         Parse response from server
         """
         try:
+            print(data)
             data = json.loads(data)
             if data['success'] == "True":
                 print("Success parsing")
                 return data['message']
             else:
                 print("Error parsing")
+                
                 raise Exception(data['message'])
+        except ValueError:
+            print(data)
+
+    def parse_data(self, data):
+        """
+        Parse response from server
+        """
+        try:
+            print(data)
+            data = json.loads(data)
+            return data['message']
         except ValueError:
             print(data)
 
 
 class SocketThread(threading.Thread):
-    def __init__(self, addr, client, lock, sock):
+    def __init__(self, client, lock, sock):
         """
         Client udp connection
         """
@@ -231,7 +245,7 @@ class SocketThread(threading.Thread):
         self.port = self.find_port_and_bind(addr)
         print("port= ",self.port)
         """
-
+    """
     def find_port_and_bind(self, addr):
         ip = addr[0]
         port = addr[1]
@@ -242,6 +256,7 @@ class SocketThread(threading.Thread):
                 return(port)
             except:
                 port += 1
+    """
 
     def run(self):
         """

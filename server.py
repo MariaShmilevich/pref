@@ -340,6 +340,7 @@ class TcpListenerThread(Thread):
             
             data = self.conn.recv(1024)
             try:
+                print(data)
                 data = json.loads(data)
                 action = data['action']
                 identifier = None
