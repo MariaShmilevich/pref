@@ -3,11 +3,6 @@ Buttons are displayed for bidding
 """
 import arcade
 
-#should be set up by network
-#bids=[0,0,0]
-#bidding_turn = [0]
-#index = [0]
-
 bidding_order = [\
     "6 пик","6 треф","6 бубей","6 червей","6 БК",
     "7 пик","7 треф","7 бубей","7 червей","7 БК",
@@ -23,20 +18,8 @@ game_order = [\
     "9s","9c","9d","9h","9n",
     "10s","10c","10d","10h","10n"]
 
-visting_order = ["пас","свой","вист","играет"] #MS!!!
+#visting_order = ["пас","свой","вист","играет"] #MS!!!
 
-"""
-turn_msg_x_coord = [10,10,700]
-turn_msg_y_coord = [200,400,70]
-
-bid_msg_x_coord = [70,70,700]
-bid_msg_y_coord = [200,400,50]
-
-star_x_coord = [turn_msg_x_coord[0]+5,
-                turn_msg_x_coord[1]+5, 665]
-star_y_coord = [turn_msg_y_coord[0]-20,
-                turn_msg_y_coord[1]+30, 345]
-"""
 turn_msg_x_coord = [10,10,600]
 turn_msg_y_coord = [200,400,305]
 

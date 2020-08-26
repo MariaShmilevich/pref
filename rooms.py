@@ -17,7 +17,7 @@ class Rooms:
         self.players = {}
         self.room_capacity = capacity
 
-    def register(self, addr, udp_port):
+    def register(self, addr):
         """
         Register player
         """
@@ -25,11 +25,10 @@ class Rooms:
         for registered_player in self.players.values():
             if registered_player.addr == addr:
                 player = registered_player
-                player.udp_addr((addr[0], udp_port))
                 break
 
         if player is None:
-            player = Player(addr, udp_port)
+            player = Player(addr)
             self.players[player.identifier] = player
 
         return player
@@ -95,7 +94,7 @@ class Rooms:
         if room_id_to_delete:
             del self.rooms[room_id_to_delete]
 
-    def send(self, identifier, room_id, message, sock):
+    def send(self, identifier, room_id, message):
         """
         Send data to all players in room, except sender
         """
@@ -110,9 +109,9 @@ class Rooms:
             print("player name ",player.name)
             
             if player.identifier != identifier:
-                player.send_udp(identifier, message)
+                player.send_msg(identifier, message)
 
-    def send2all(self, identifier, room_id, message, sock):
+    def send2all(self, identifier, room_id, message):
         """
         Send data to all players in room, including sender
         """
@@ -124,9 +123,9 @@ class Rooms:
             raise NotInRoom()
 
         for player in room.players:
-            player.send_udp(identifier, message)
+            player.send_msg(identifier, message)
 
-    def sendto(self, identifier, room_id, recipients, message, sock):
+    def sendto(self, identifier, room_id, recipients, message):
         """
         Send data to specific player(s)
         """
@@ -142,7 +141,7 @@ class Rooms:
 
         for player in room.players:
             if player.identifier in recipients:
-                player.send_udp(identifier, message)
+                player.send_msg(identifier, message)
 
 
 class Room:
@@ -159,7 +158,6 @@ class Room:
         else:
             self.name = self.identifier
         self.deck = list(range(32))
-        #self.hands = [[],[],[],[]] #MS!!!
         self.prikup = []
         self.time_to_deal = 0
         self.times_got_continue = [0,0,0]

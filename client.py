@@ -8,18 +8,13 @@ class Client:
 
     def __init__(self,
                  server_host,
-                 server_port_tcp=1234,
-                 server_port_udp=1234,
-                 client_port_udp=1235):
+                 server_port_tcp=1234):
         """
         Create a game server client
         """
         self.identifier = None
         self.server_message = []
         self.room_id = None
-        self.client_udp = ("0.0.0.0", client_port_udp)
-        #self.server_listener.start()
-        self.server_udp = (server_host, server_port_udp)
         self.server_tcp = (server_host, server_port_tcp)
 
         self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,29 +23,24 @@ class Client:
         self.name = None
 
         self.register()
-        #self.setup()
         self.lock = threading.Lock()
         self.server_listener = SocketThread(
                                             self,
                                             self.lock,
                                             self.sock_tcp)
-        #self.server_listener.start()
 
     def create_room(self, name, room_name=None):
         """
         Create a new room on server
         """
         message = json.dumps({"action": "create",
-                              #"payload": room_name,
                               "payload": {"room_name": room_name,
                                           "client_name": name},
                               "identifier": self.identifier})
 
-        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
         data = self.sock_tcp.recv(1024)
-        #self.sock_tcp.close()
+        
         message = self.parse_data(data)
         self.room_id = message
 
@@ -60,32 +50,16 @@ class Client:
         """
         self.room_id = room_id
         message = json.dumps({"action": "join",
-                              #"payload": room_id,
                               "payload": {"room_id": room_id,
                                           "client_name": name},
                               "identifier": self.identifier})
-        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
         data = self.sock_tcp.recv(1024)
-        #self.sock_tcp.close()
+        
         message = self.parse_data(data)
         self.room_id = message
 
         self.server_listener.start() #MS!!!
-
-    def autojoin(self):
-        """
-        Join the first non-full room
-        """
-        message = json.dumps({"action": "autojoin", "identifier": self.identifier})
-        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.sock_tcp.connect(self.server_tcp)
-        self.sock_tcp.send(message.encode())
-        data = self.sock_tcp.recv(1024)
-        #self.sock_tcp.close()
-        message = self.parse_data(data)
-        self.room_id = message
 
     def leave_room(self):
         """
@@ -96,10 +70,7 @@ class Client:
             "room_id": self.room_id,
             "identifier": self.identifier
         })
-        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.sock_tcp.connect(self.server_tcp)
         self.sock_tcp.send(message.encode())
-
         #data = self.sock_tcp.recv(1024)
         #message = self.parse_data(data)
         self.server_listener.stop()
@@ -108,15 +79,10 @@ class Client:
         """
         Get the list of remote rooms
         """
-        message = json.dumps({"action": "get_rooms", "identifier": self.identifier})
-        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.sock_tcp.connect(self.server_tcp)
-        print("msg ", message)
+        message = json.dumps({"action": "get_rooms", 
+                              "identifier": self.identifier})
         self.sock_tcp.send(message.encode())
-        print("sent")
         data = self.sock_tcp.recv(1024)
-        print("rcv")
-        #self.sock_tcp.close()
         message = self.parse_data(data)
         return message
 
@@ -130,13 +96,7 @@ class Client:
             "room_id": self.room_id,
             "identifier": self.identifier
         })
-        #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #sock.sendto(message.encode(), self.server_udp)
         self.sock_tcp.send(message.encode())
-
-        #for testing MS!!!
-        print("time= ", time.time()) 
-        print("sent msg: ", message)
 
     def sendto(self, recipients, message):
         """
@@ -151,8 +111,6 @@ class Client:
             "room_id": self.room_id,
             "identifier": self.identifier
         })
-        #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #sock.sendto(message, self.server_udp)
         self.sock_tcp.send(message.encode())
 
     def register(self):
@@ -161,22 +119,13 @@ class Client:
         """
         message = json.dumps({
             "action": "register",
-            #"payload": self.client_udp[1]
-            #"payload": self.server_listener.port
-            "payload": "1234"
-            #"payload": {"name": self.name,
-                        #"port": self.server_listener.port}
+            "payload": self.server_tcp[1]
         })
-        #self.sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #self.sock_tcp.connect(self.server_tcp)
+        
         self.sock_tcp.send(message.encode())
-        print("sent")
         data = self.sock_tcp.recv(1024)
-        print("rcv")
-        #self.sock_tcp.close()
         message = self.parse_data(data)
         self.identifier = message
-        print("id= ", self.identifier)
 
     def setup(self):
         rooms = self.get_rooms()
@@ -236,27 +185,6 @@ class SocketThread(threading.Thread):
         self.sock = sock
 
         self.connection_open = True
-
-        """
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #self.sock.bind(addr)
-
-        self.connection_open = False #used to stop running on exit
-        self.port = self.find_port_and_bind(addr)
-        print("port= ",self.port)
-        """
-    """
-    def find_port_and_bind(self, addr):
-        ip = addr[0]
-        port = addr[1]
-        while not self.connection_open:
-            try:
-                self.sock.bind((ip, port))
-                self.connection_open = True
-                return(port)
-            except:
-                port += 1
-    """
 
     def run(self):
         """

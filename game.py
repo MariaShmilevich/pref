@@ -11,9 +11,6 @@ from bidding import *
 from pool import *
 from client import *
 
-import time
-from datetime import datetime
-
 class MyGame(arcade.Window):
     """
     Main application class.
@@ -32,8 +29,8 @@ class MyGame(arcade.Window):
 
         self.players = ["Dummy", "Dummy", "Dummy"]
         """
-        The first hand at the beginning will be the first 
-        person connected to the server - player number 0
+        The first hand at the beginning will be the second 
+        person connected to the server - player number 1
         """
         self.turn = 0  
 
@@ -120,7 +117,7 @@ class MyGame(arcade.Window):
 
     def parse_server_msg(self):
         """ 
-        Parse UDP message from server
+        Parse  message from server
         """
 
         if len(self.client.server_message) == 0:
@@ -130,26 +127,11 @@ class MyGame(arcade.Window):
 
         if not "message" in message.keys():
             return
-        print("time = ",time.time()) #MS!!!
-        print("received msg: ", message) #MS!!!
+        
         #Done at the beginning: setup players' order & names
-        """
-        if "player_name" in message["message"].keys():
-            i = int(message["message"]["player_number"])
-            self.players[i] = message["message"]["player_name"]
-            self.score.names[i] = self.players[i][0]
-            if self.client.identifier in message.keys():
-                self.my_num = i
-                self.set_shift()
-            if i == 2:
-                self.waiting_stage = 0
-        """
         if "player_names" in message["message"].keys():
             for j in (0,1,2):
-                temp = message["message"]["player_names"][str(j)]["name"]
-                print("temp name = ",temp)
                 i = int(message["message"]["player_names"][str(j)]["num"])
-                print ("index i = ",i)
                 self.players[i] = \
                     message["message"]["player_names"][str(j)]["name"]
                 self.score.names[i] = self.players[i][0]
@@ -157,14 +139,12 @@ class MyGame(arcade.Window):
                 if self.client.name == self.players[i]:
                     self.my_num = i
                     self.set_shift()
-            #if i == 2:
             self.waiting_stage = 0
         #Server dealt next round
         if "hand" in message["message"].keys():
             self.clear_sprite_lists()
             card_num_list = list(map(int, 
                         message["message"]["hand"].split(',')))
-            print("My hand: ", card_num_list)
             deal_open(self.hand, card_num_list, self.deck)
             self.deal_new_round()
             self.waiting_stage = 0
@@ -180,7 +160,6 @@ class MyGame(arcade.Window):
         if "prikup" in message["message"].keys():
             card_num_list = list(map(int, 
                         message["message"]["prikup"].split(',')))
-            print("Prikup: ", card_num_list)
             game_type = message["message"]["type"]
             deal_open(self.prikup, card_num_list, self.deck, "no_sort")
             self.move_to_prikup_stage(game_type)
@@ -506,34 +485,25 @@ class MyGame(arcade.Window):
 
     def connect_to_server(self):
         rooms = self.client.get_rooms()
-        print("got room") #MS!!!
         if rooms is not None and len(rooms) != 0:
+            """
             for room in rooms:
-                print("Room %s (%d/%d)" % (room["name"], int(room["nb_players"]), int(room["capacity"])))
+                print("Room %s (%d/%d)" % (room["name"], 
+                    int(room["nb_players"]), int(room["capacity"])))
+            """
 
-            # Get first room for tests
+            # Get first room so far, change later!
             selected_room = rooms[0]['id']
-            
-            """
-            try:
-                self.client.join_room(selected_room, self.client.name)
-            except Exception as e:
-                print("Error : %s" % str(e))
-            """
-            
         else:
             self.client.create_room(self.client.name, "Pref room")
-            print("Client created room  %s" % self.client.room_id)
             selected_room = self.client.room_id
 
-        
         try:
             self.client.join_room(selected_room, self.client.name)
         except Exception as e:
             print("Error : %s" % str(e))
         
     def setup(self):
-        #self.connect_to_server()
         # Create your sprites and sprite lists here
         self.create_sprite_list()
 
@@ -637,11 +607,6 @@ class MyGame(arcade.Window):
     def draw_offer(self):
         self.button_list[11].draw()
         self.textbox_list[2].draw()
-        """
-        arcade.draw_text("взяток", 727, 48,
-                         arcade.color.BLACK,
-                         font_size=16)
-        """
 
     def draw_order(self, bids):
         #this shouldn't happen, but just to be safe
@@ -828,14 +793,7 @@ class MyGame(arcade.Window):
 
         if self.playing_stage:
             self.draw_playing()
-        """
-        if self.writing_stage:
-            self.draw_writing()
-            self.deal_new_round() #MS!!!
-            self.turn = (self.turn + 1)%3 
-        """  
-    
-
+        
         if self.show_stage:
             self.shape_list.draw()
             self.score.write_pool(320,300,600,400,self.my_num)
@@ -867,27 +825,8 @@ class MyGame(arcade.Window):
             if len(self.client.server_message) > 0:
                 self.parse_server_msg()
 
-        #MS!!! make a function
         if bidding_complete(self.bids) and self.bidding_stage:
-            self.bidding_stage = 0 
-            self.curr_bid_winner = who_won_bidding(self.bids)
-            if self.curr_bid_winner >= 0: #not распас
-                self.vists[self.curr_bid_winner] =\
-                    self.bids[self.curr_bid_winner] #temporary
-                self.visting_turn = (self.curr_bid_winner+1)%3
-                
-                if self.bids[self.curr_bid_winner] == "мизер":
-                    temp = "miser"
-                elif self.bids[self.curr_bid_winner] == "мизер БП":
-                    temp = "miser_bp"
-                else:
-                    temp="reg"
-            else:
-                temp="raspas"
-            if self.my_num == self.turn: #send only once
-                message ={"bidding_winner":str(self.curr_bid_winner),
-                          "type":str(temp)}
-                self.client.send(message, "server")
+            self.finalize_bidding()   
 
         if self.vist_complete:
             self.finalize_vists()
@@ -896,6 +835,27 @@ class MyGame(arcade.Window):
             pass #say something MS!!!
 
         self.disable_unnecessary_buttons()
+
+    def finalize_bidding(self):
+        self.bidding_stage = 0 
+        self.curr_bid_winner = who_won_bidding(self.bids)
+        if self.curr_bid_winner >= 0: #not распас
+            self.vists[self.curr_bid_winner] =\
+                self.bids[self.curr_bid_winner] #temporary
+            self.visting_turn = (self.curr_bid_winner+1)%3
+                
+            if self.bids[self.curr_bid_winner] == "мизер":
+                temp = "miser"
+            elif self.bids[self.curr_bid_winner] == "мизер БП":
+                temp = "miser_bp"
+            else:
+                temp="reg"
+        else:
+            temp="raspas"
+        if self.my_num == self.turn: #send only once
+            message ={"bidding_winner":str(self.curr_bid_winner),
+                      "type":str(temp)}
+            self.client.send(message, "server")
 
     def on_key_press(self, key, key_modifiers):
         """
@@ -1353,10 +1313,10 @@ class MyGame(arcade.Window):
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
         host = socket.gethostbyname("bilbo.varphi.com")
-        self.client = Client(host, 1234, 1234, 1235)
-        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        self.client = Client(host)
+        #self.client = Client("127.0.0.1")
         self.client.name = name
-        self.connect_to_server() #Done on client now MS!!!
+        self.connect_to_server() 
         self.connecting_stage = 0
         self.connected = 1
         self.waiting_stage = 1
@@ -1381,13 +1341,9 @@ class MyGame(arcade.Window):
 
     def close(self):
         """ Close the Window. """
+        self.client.leave_room()
         super().close()
         
-        self.client.leave_room()
-        #self.client.server_listener.stop()
-        
-
-
 def main():
     """ Main method """
     game = MyGame(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)

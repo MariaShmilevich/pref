@@ -1,6 +1,6 @@
 import arcade
 SF = .11
-from random import shuffle
+#from random import shuffle
 import sys
 from os import path
 bundle_dir = getattr(sys, '_MEIPASS', 
@@ -110,8 +110,6 @@ class Card:
         self.back.angle = 0
 
     def set_east_coord(self,order):
-        #y=[535,535,445,445,355,355,265,265,175,175]
-        #y=[525,525,435,435,345,345,255,255,165,165]
         #two last for prikup
         y=[525,525,435,435,345,345,255,255,165,165,75,75]
         self.face.center_x = 700+60*(order%2)
@@ -157,35 +155,12 @@ def get_key(card):
         return("u"+str(card.value-6))
     return(card.suit + str(card.value-6))
 
-#This should change with server
-deck = []
-for i in range(32):
-    new_card=Card(picz[i][0], picz[i][1], picz[i][2], \
-        arcade.Sprite(picz[i][3],SF))
-    deck.append(new_card)
-
-def deal(shuffled_deck, beg_index, end_index, hand):
-    del hand[:]
-    hand.extend(shuffled_deck[beg_index:end_index])
-    hand.sort(reverse=True, key = get_key)
-
 def deal_open(hand, card_num_list, deck, sort = "sort"):
     del hand[:]
     for i in card_num_list:
         hand.append(deck[i])
     if sort == "sort":
         hand.sort(reverse=True, key = get_key)
-
-def deal_all_hands(hands):
-    shuffle(deck)
-    #temp = get_players_order(round_players,round_num)
-    for i in [0,1,2]:
-        beg_index = 10*i
-        end_index =10*(i+1)
-        deal(deck, beg_index, end_index, hands[i])
-        #prikup
-        deal(deck, 30, 32, hands[3])
-        #return(temp)
 
 def card_chosen(hand,x,y):
     i = 0
