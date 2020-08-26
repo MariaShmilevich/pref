@@ -375,7 +375,8 @@ class TcpListenerThread(Thread):
                 print("Json from %s:%s is not valid" % self.addr)
                 #self.conn.send("Json is not valid")
             except ValueError:
-                print("Message from %s:%s is not valid json string" % self.addr)
+                pass
+                #print("Message from %s:%s is not valid json string" % self.addr)
                 #self.conn.send("Message is not a valid json string")
 
             #conn.close()
@@ -434,6 +435,7 @@ class TcpListenerThread(Thread):
                     if self.rooms.rooms[room_id].is_full():
                         #self.rooms.rooms[room_id].time_to_deal = 1 
                         data['action'] = "start"
+                        print("data['action'] = ",data['action'])
                         self.rooms.rooms[room_id].message_queue.append(data)
                         """
                         for player in self.rooms.rooms[room_id].players:
@@ -465,9 +467,11 @@ class TcpListenerThread(Thread):
                 client.send_tcp(True, rooms, sock)
             elif action == "create":
                 room_identifier = self.rooms.create(payload["room_name"])
+                """
                 self.rooms.join(client.identifier, 
                                 payload["client_name"],
                                 room_identifier)
+                """
                 client.send_tcp(True, room_identifier, sock)
             elif action == 'leave':
                 try:
@@ -517,21 +521,37 @@ class TcpRoomThread(Thread):
 
     def process(self, room_id, msg):
         if msg['action'] == 'start':
+            temp={'0': {'name': 'Dummy', 'num': 0}, 
+                '1': {'name': 'Dummy', 'num': 0},
+                '2': {'name': 'Dummy', 'num': 0}}
+            i=0
             for player in self.rooms.rooms[room_id].players:
-                message = {"player_number":str(player.num),
-                            "player_name":player.name}
-                #send to all:
-                self.rooms.send2all(player.identifier,
+                temp[str(i)]["name"]=player.name
+                temp[str(i)]["num"]=player.num
+                i+=1
+            message = {"player_names":temp}            
+            #send to all:
+            """
+            self.rooms.send2all(player.identifier,
                                                 room_id,
                                                 message,
                                                 self.sock)
                                                 #player.tcp_conn)
+            """
+            for pl in self.rooms.rooms[room_id].players:
+                self.rooms.sendto(pl.identifier,
+                        room_id,
+                        pl.identifier,
+                        message,
+                        self.sock)
                                                 
-                print(player.name, " joined room")
-                self.rooms.rooms[room_id].time_to_deal = 1
+                print("message sent was ", message)
+                print(pl.name, " joined room")
+            self.rooms.rooms[room_id].time_to_deal = 1
         elif msg['action'] == "send":
             try:
                 payload = msg['payload']
+                identifier = msg["identifier"]
                 self.rooms.send(identifier, room_id,
                                 payload['message'],
                                 self.sock)

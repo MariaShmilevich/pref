@@ -133,6 +133,7 @@ class MyGame(arcade.Window):
         print("time = ",time.time()) #MS!!!
         print("received msg: ", message) #MS!!!
         #Done at the beginning: setup players' order & names
+        """
         if "player_name" in message["message"].keys():
             i = int(message["message"]["player_number"])
             self.players[i] = message["message"]["player_name"]
@@ -142,6 +143,22 @@ class MyGame(arcade.Window):
                 self.set_shift()
             if i == 2:
                 self.waiting_stage = 0
+        """
+        if "player_names" in message["message"].keys():
+            for j in (0,1,2):
+                temp = message["message"]["player_names"][str(j)]["name"]
+                print("temp name = ",temp)
+                i = int(message["message"]["player_names"][str(j)]["num"])
+                print ("index i = ",i)
+                self.players[i] = \
+                    message["message"]["player_names"][str(j)]["name"]
+                self.score.names[i] = self.players[i][0]
+                #if self.client.identifier in message.keys():
+                if self.client.name == self.players[i]:
+                    self.my_num = i
+                    self.set_shift()
+            #if i == 2:
+            self.waiting_stage = 0
         #Server dealt next round
         if "hand" in message["message"].keys():
             self.clear_sprite_lists()
@@ -496,22 +513,25 @@ class MyGame(arcade.Window):
 
             # Get first room for tests
             selected_room = rooms[0]['id']
+            
             """
             try:
                 self.client.join_room(selected_room, self.client.name)
             except Exception as e:
                 print("Error : %s" % str(e))
             """
+            
         else:
             self.client.create_room(self.client.name, "Pref room")
             print("Client created room  %s" % self.client.room_id)
             selected_room = self.client.room_id
 
+        
         try:
             self.client.join_room(selected_room, self.client.name)
         except Exception as e:
             print("Error : %s" % str(e))
-            
+        
     def setup(self):
         #self.connect_to_server()
         # Create your sprites and sprite lists here
@@ -1332,9 +1352,9 @@ class MyGame(arcade.Window):
 
     def send_name(self):
         name = self.textbox_list[1].text_storage.text
-        #host = socket.gethostbyname("bilbo.varphi.com")
-        #self.client = Client(host, 1234, 1234, 1235)
-        self.client = Client("127.0.0.1", 1234, 1234, 1235)
+        host = socket.gethostbyname("bilbo.varphi.com")
+        self.client = Client(host, 1234, 1234, 1235)
+        #self.client = Client("127.0.0.1", 1234, 1234, 1235)
         self.client.name = name
         self.connect_to_server() #Done on client now MS!!!
         self.connecting_stage = 0

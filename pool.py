@@ -193,7 +193,7 @@ class Score:
         self.otv_vist_factor = 1 
         #For pool writing:
         # Пуля: Юг, Север, Восток
-        self.pool = [18,18,18]
+        self.pool = [0,0,0]
         # Гора: Юг, Север, Восток
         self.hill = [20,20,20]
         # Висты: юг на север и т.д.
